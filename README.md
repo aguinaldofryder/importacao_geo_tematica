@@ -68,3 +68,13 @@ A importação da planilha predial segue a mesma premissa da planilha territoria
 * O sistema pode funcionar por linha de comando, não é necessário interface gráfica
 * Para definifr se um campo deve ser utilizado para predial ou territorial deve ser feito um JOIN da tabela campo com a grupocamo. Na tabela grupocamo, a coluna funcionalidade define 'TERRENO' ou 'SEGMENTO'. 
 * O sistema pode evoluir para uma API com interface web.
+
+## Desenvolvimento
+
+Este projeto segue o framework **Synkra AIOX**.
+
+- **Arquitetura:** [`docs/architecture/arquitetura.md`](./docs/architecture/arquitetura.md)
+- **PRD:** [`docs/prd/prd.md`](./docs/prd/prd.md)
+- **Stories:** [`docs/stories/`](./docs/stories/)
+
+Stack definida: Quarkus 3.x + GraalVM native-image + fastexcel-reader + picocli + PostgreSQL.
