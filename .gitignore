@@ -72,3 +72,8 @@ saida/
 
 # Lock files LibreOffice
 .~lock.*
+
+# Backups de banco de dados (nunca versionar)
+*.backup
+*.dump
+*.pg_dump
