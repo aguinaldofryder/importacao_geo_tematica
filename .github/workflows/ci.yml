@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  placeholder:
+    name: Placeholder (substituído pela Story 1.2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check project structure
+        run: |
+          test -f README.md
+          test -f docs/architecture/arquitetura.md
+          test -f docs/prd/prd.md
+          echo "Estrutura mínima OK — CI será enriquecido na Story 1.2 (build Quarkus)"
