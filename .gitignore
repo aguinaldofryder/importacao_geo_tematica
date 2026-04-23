@@ -1,0 +1,74 @@
+
+
+# Environment & Secrets (AIOX)
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+
+# Dependencies (AIOX)
+node_modules/
+node_modules
+
+# Build & Logs (AIOX)
+dist/
+build/
+*.log
+logs/
+
+# IDE & OS (AIOX)
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# AIOX Local (AIOX)
+.aiox-core/local/
+.claude/settings.local.json
+.aiox/install-log.txt
+
+# Ferramentas de IA / Agentes (não versionados — decisão §4.6)
+.aiox-core/
+.claude/
+CLAUDE.md
+.codex/
+.cursor/
+.gemini/
+.antigravity/
+AGENTS.md
+.github/agents/
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+
+# Quarkus
+.quarkus/
+quarkus.log
+*.dockerfile
+
+# GraalVM / Native
+*.so
+*.dll
+*.exe
+reports/
+
+# Config com credenciais
+config/application.properties
+
+# Saída gerada pela ferramenta
+saida/
+
+# IDE extras
+*.iml
+.settings/
+.classpath
+.project
+
+# Lock files LibreOffice
+.~lock.*
