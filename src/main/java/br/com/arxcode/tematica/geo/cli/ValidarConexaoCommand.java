@@ -1,5 +1,6 @@
 package br.com.arxcode.tematica.geo.cli;
 
+import io.quarkus.arc.Unremovable;
 import jakarta.enterprise.context.Dependent;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -17,8 +18,11 @@ import java.util.regex.Pattern;
 
 // @Dependent evita o client proxy do CDI, necessário para que picocli possa
 // injetar @CommandLine.Spec diretamente na instância real (não num wrapper).
+// @Unremovable impede que o ARC elimine o bean em modo prod (ele é resolvido
+// via lookup programático pelo PicocliBeansFactory, e o build não detecta o uso).
 // Instance<DataSource> permite startup com datasource inativo (quarkus.datasource.active=false).
 @Dependent
+@Unremovable
 @CommandLine.Command(
     name = "validar-conexao",
     description = "Valida a conexão com o banco de dados PostgreSQL.",

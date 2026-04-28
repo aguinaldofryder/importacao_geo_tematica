@@ -24,8 +24,9 @@ public class PostgresResource implements QuarkusTestResourceLifecycleManager {
             "quarkus.datasource.username",                 PG.getUsername(),
             "quarkus.datasource.password",                 PG.getPassword(),
             "quarkus.datasource.jdbc.acquisition-timeout", "5"
-            // currentSchema não é sobrescrito: SET search_path TO aise
-            // é ignorado silenciosamente pelo PG se o schema não existir
+            // Não sobrescrevemos currentSchema aqui: o container usa o schema
+            // 'public' por padrão, suficiente para validar conectividade (AC1).
+            // O schema 'aise' do domínio só é necessário em testes de DML.
         );
     }
 
