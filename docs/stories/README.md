@@ -11,7 +11,7 @@
 | [1.1](./1.1.git-init-ci-minimo.md) | Inicialização de repositório git e pipeline CI mínimo | @devops | 2 h | — |
 | [1.2](./1.2.scaffold-quarkus.md) | Scaffold Quarkus + estrutura de pacotes + convenções | @dev | 0,5 h | 1.1 |
 | [1.3](./1.3.skeleton-picocli.md) | Esqueleto picocli (subcomandos stub) | @dev | 0,3 h | 1.2 |
-| [1.4](./1.4.config-externa-properties.md) | @ConfigMapping + leitura de `./config/application.properties` | @dev | 0,5 h | 1.3 |
+| [1.4](./1.4.config-externa-properties.md) ✅ | @ConfigMapping + leitura de `./config/application.properties` | @dev | 0,5 h | 1.3 |
 | [1.5](./1.5.datasource-validar-conexao.md) | Datasource PostgreSQL + comando `validar-conexao` | @dev | 1,5 h | 1.4 |
 
 ## Épico 2 — Leitura de planilhas e catálogo
