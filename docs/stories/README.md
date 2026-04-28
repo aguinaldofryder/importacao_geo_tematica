@@ -27,7 +27,7 @@
 
 | ID | Título | Assignee | Estim. | Depende |
 |---|---|---|---:|---|
-| [3.1](./3.1.mapeamento-store-json.md) | MapeamentoStore (Jackson JSON I/O) | @dev | 0,3 h | 1.2, 2.2 |
+| [3.1](./3.1.mapeamento-store-json.md) ✅ | MapeamentoStore (Jackson JSON I/O) | @dev | 0,3 h | 1.2, 2.2 |
 | [3.2](./3.2.auto-mapeador.md) | AutoMapeador (header ↔ campo, valor ↔ alternativa) | @dev | 1,5 h | 2.1, 2.3, 2.4, 3.1 |
 | [3.3](./3.3.mapeamento-validador.md) | MapeamentoValidador (gate PENDENTE) | @dev | 0,3 h | 3.1 |
 | [3.4](./3.4.comando-mapear.md) | Comando `mapear` | @dev | 1 h | 2.3, 2.4, 3.2 |
