@@ -1,0 +1,118 @@
+schema: 1
+story: '1.5'
+story_title: 'Datasource PostgreSQL + comando validar-conexao'
+gate: PASS
+status_reason: 'QA fixes aplicadas (5 de 7 issues fechadas; 2 deferidas para Story 6.3 como tech debt rastreado). Bug @Unremovable preventivamente aplicado nos 3 comandos siblings, encoding UTF-8 restaurado, depreciações limpas. Validação prod-jar ✓ + 17/17 testes verdes. Funcionalmente sólido para promoção a Done.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2026-04-27T22:50:00-03:00'
+
+quality_score: 90
+expires: '2026-05-11T22:50:00-03:00'
+
+evidence:
+  tests_reviewed: 17
+  risks_identified: 7
+  risks_resolved: 5
+  risks_deferred: 2
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 7]
+    ac_gaps: [6]  # AC6 cenário 3 sem teste e2e real — deferido para Story 6.3
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: 'AC5 (senha não vaza) testado apenas contra string literal "S3cr3t!Pass#99" e "nopass". Mensagem amigável protege por design. Gap residual (ISSUE-1.5-03) deferido para Story 6.3.'
+  performance:
+    status: PASS
+    notes: 'acquisition-timeout=5s configurado e validado em ValidarConexaoFalhaTest.'
+  reliability:
+    status: PASS
+    notes: 'Bug @Unremovable corrigido + replicado preventivamente nos 3 sibling commands. Smoke prod-jar manual confirma ✓ Conexão OK. Cobertura prod-mode automatizada (ISSUE-1.5-02) é responsabilidade de Story 6.3.'
+  maintainability:
+    status: PASS
+    notes: 'Código limpo. mensagemAmigavel package-protected facilita teste unitário. Comentários explicam decisões @Dependent + @Unremovable. Encoding UTF-8 restaurado.'
+
+top_issues:
+  - id: ISSUE-1.5-01
+    severity: high
+    status: RESOLVED
+    title: 'Bug @Unremovable ausente não foi capturado pelos testes'
+    description: 'ValidarConexaoCommand era removido pelo ARC em prod, causando NPE silencioso em Instance<DataSource>.get(). Fix original aplicado pelo @dev. Issue de re-review: replicar preventivamente nos 3 sibling commands.'
+    resolution: '@Dependent + @Unremovable adicionados em MapearCommand, ValidarCommand, ImportarCommand. Verificado via grep + 17/17 verdes + smoke prod-jar.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/cli/MapearCommand.java'
+      - 'src/main/java/br/com/arxcode/tematica/geo/cli/ValidarCommand.java'
+      - 'src/main/java/br/com/arxcode/tematica/geo/cli/ImportarCommand.java'
+
+  - id: ISSUE-1.5-02
+    severity: high
+    status: DEFERRED
+    title: 'Falta IT em modo prod-jar (gap de cobertura sistêmico)'
+    description: 'Toda a suite roda em test-mode com pruning de beans desligado. Gap sistêmico, não específico desta story.'
+    deferred_to: 'Story 6.3 (e2e-binario-nativo)'
+    rationale: 'Adicionar @QuarkusIntegrationTest aqui replicaria infraestrutura que Story 6.3 vai criar de forma adequada. Mitigado parcialmente pela validação manual prod-jar nesta sessão.'
+
+  - id: ISSUE-1.5-03
+    severity: medium
+    status: DEFERRED
+    title: 'AC6 cenário 3 (credencial inválida) sem teste e2e real'
+    description: 'mensagemParaCredencialInvalida testa apenas mapeamento de SQLException mockada. Não há teste integrado que dispare 28P01 real do Postgres.'
+    deferred_to: 'Story 6.3 (e2e-binario-nativo)'
+    rationale: 'Naturalmente coberto pelo escopo e2e da Story 6.3. Mock unitário é suficiente para validar o mapeamento determinístico nesta story.'
+
+  - id: ISSUE-1.5-04
+    severity: medium
+    status: RESOLVED
+    title: 'Regressão de encoding nos arquivos de configuração'
+    description: 'application.properties e application.properties.exemplo haviam perdido acentos.'
+    resolution: 'Ambos os arquivos reescritos com UTF-8 preservando acentos (Saída, Senha, Usuário, domínio, padrão, configuração, conexão). 12 acentos no exemplo, 3 no application.properties.'
+    refs:
+      - 'src/main/resources/application.properties'
+      - 'application.properties.exemplo'
+
+  - id: ISSUE-1.5-05
+    severity: low
+    status: RESOLVED
+    title: 'Comentário incorreto em PostgresResource sobre search_path'
+    description: 'Comentário afirmava que SET search_path era ignorado pelo PG quando o schema não existe — tecnicamente incorreto.'
+    resolution: 'Comentário reescrito explicando que o resource não sobrescreve currentSchema porque SELECT 1 não depende do schema do domínio.'
+    refs:
+      - 'src/test/java/br/com/arxcode/tematica/geo/cli/PostgresResource.java:27-30'
+
+  - id: ISSUE-1.5-06
+    severity: low
+    status: RESOLVED
+    title: 'Property quarkus.log.console.enable depreciada'
+    description: 'Warning recorrente em todos os runs.'
+    resolution: 'Linha removida de src/main/resources/application.properties. Verificado via grep (0 ocorrências).'
+    refs:
+      - 'src/main/resources/application.properties'
+
+  - id: ISSUE-1.5-07
+    severity: low
+    status: RESOLVED
+    title: 'application.properties.exemplo não documenta devservices.enabled=false'
+    description: 'Risco de operador subir DevServices acidentalmente em prod.'
+    resolution: 'Adicionado quarkus.devservices.enabled=false no .exemplo com comentário explicativo.'
+    refs:
+      - 'application.properties.exemplo'
+
+waiver:
+  active: false
+
+recommendations:
+  immediate: []  # todas as ações imediatas concluídas
+  future:
+    - action: 'Story 6.3 deve absorver ISSUE-1.5-02 (smoke IT prod-jar) e ISSUE-1.5-03 (credencial inválida e2e)'
+      refs:
+        - 'docs/stories/6.3.e2e-binario-nativo.md'
+
+history:
+  - date: '2026-04-27T22:42:00-03:00'
+    gate: CONCERNS
+    score: 70
+    note: 'Review inicial: 7 issues identificadas, 2 HIGH (bug @Unremovable + gap prod-jar IT).'
+  - date: '2026-04-27T22:50:00-03:00'
+    gate: PASS
+    score: 90
+    note: 'Re-review pós apply-qa-fixes: 5 issues resolvidas, 2 deferidas para Story 6.3 com rationale documentado. Validação prod-jar ✓ + 17/17 verdes.'
