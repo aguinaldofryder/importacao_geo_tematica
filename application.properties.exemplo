@@ -14,6 +14,11 @@ quarkus.datasource.username=usuario
 quarkus.datasource.password=senha
 # Schema padrão (todas as tabelas do domínio estão em 'aise')
 quarkus.datasource.jdbc.additional-jdbc-properties.currentSchema=aise
+# Timeout de aquisição de conexão do pool em segundos (padrão: 5)
+quarkus.datasource.jdbc.acquisition-timeout=5
+
+# Desabilita DevServices (usamos container próprio via docker-compose)
+quarkus.devservices.enabled=false
 
 # === Saída ===
 # Diretório onde os arquivos .sql e .log serão gravados (padrão: ./saida)
