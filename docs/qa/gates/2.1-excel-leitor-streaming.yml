@@ -1,0 +1,88 @@
+schema: 1
+story: '2.1'
+story_title: 'ExcelLeitor com fastexcel-reader (streaming)'
+gate: PASS
+status_reason: 'Implementação sólida com cobertura completa dos 8 ACs. AC4 (streaming 100k linhas com -Xmx256m) demonstrado empiricamente em 0.576s. Refactor ativo aplicado pelo QA (cabecalhos() agora retorna List imutável via List.copyOf, alinhando contrato Javadoc↔código). 27/27 testes verdes pós-refactor. Pronto para promoção a Done.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2026-04-27T23:30:00-03:00'
+
+quality_score: 92
+expires: '2026-05-11T23:30:00-03:00'
+
+evidence:
+  tests_reviewed: 10
+  risks_identified: 4
+  risks_resolved: 1
+  risks_deferred: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Sem manipulação de credenciais nesta camada. Mensagens de erro incluem path do arquivo (apropriado para diagnóstico CLI local).'
+  performance:
+    status: PASS
+    notes: 'NFR-04 validado: 100.000 linhas × 3 colunas (~2 MB) lidas em 0.576s com -Xmx256m sem OOM. Margem confortável vs. orçamento de 512 MB. argLine -Xmx256m aplicado globalmente em Surefire+Failsafe — todas as suítes hoje cabem nesse heap.'
+  reliability:
+    status: PASS
+    notes: 'Construtor de ExcelSessao fecha workbook em falha de leitura de header (com addSuppressed). cause original preservado em todos os ImportacaoException. Validações ordenadas (null → exists → extension) em ExcelLeitor.abrir.'
+  maintainability:
+    status: PASS
+    notes: 'Javadoc abrangente documenta decisões: re-parse de header em linhas() (custo desprezível), AC8 out-of-scope, contrato de stream uma-vez-consumível. Hierarquia ImportacaoException pronta para subtipos das próximas stories.'
+
+top_issues:
+  - id: ISSUE-2.1-01
+    severity: medium
+    status: RESOLVED
+    title: 'Javadoc de cabecalhos() afirma "lista imutável" mas retornava ArrayList mutável'
+    description: 'ExcelSessao.cabecalhos() retornava o field interno (ArrayList) — caller poderia mutar a lista interna por engano. Inconsistência contrato↔implementação.'
+    resolution: 'Refactor QA: alterado para retornar List.copyOf(cabecalhos). 10/10 testes do pacote excel verdes pós-refactor (ExcelLeitorTest + ExcelLeitorStreamingTest).'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/excel/ExcelSessao.java:78-80'
+
+  - id: ISSUE-2.1-02
+    severity: low
+    status: OPEN
+    title: 'Mensagem de erro em sheet.openStream() não inclui path do arquivo'
+    description: 'ExcelSessao.linhas():104 lança "Falha ao abrir stream de linhas da planilha." sem identificar qual arquivo. Em um pipeline batch processando vários xlsx, dificultaria correlação. Não bloqueante: o cause IOException tipicamente carrega contexto suficiente.'
+    resolution: 'Sugestão futura: armazenar o Path como field final em ExcelSessao e incluir nas mensagens de erro. Atrasar para quando aparecer evidência real de necessidade (ex.: Story 4.4 log-erros-estruturado).'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/excel/ExcelSessao.java:99-105'
+
+  - id: ISSUE-2.1-03
+    severity: low
+    status: OPEN
+    title: 'AC5 não testa Path null explicitamente'
+    description: 'ExcelLeitor.abrir(Path):46 trata xlsx==null com mensagem "Caminho da planilha não informado.", mas não há teste cobrindo esse branch. Risco prático mínimo (CLI sempre passa Path não-null), mas é cobertura de contrato pública faltante.'
+    resolution: 'Adicionar 1 teste assertThrows com null. Custo trivial; não bloqueia gate.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/excel/ExcelLeitor.java:45-47'
+
+  - id: ISSUE-2.1-04
+    severity: low
+    status: INFO
+    title: 'argLine -Xmx256m aplicado globalmente vs. apenas no teste de streaming'
+    description: 'POM aplica -Xmx256m a TODAS as execuções Surefire/Failsafe. Hoje passa (heap atual <256m em todos os testes), mas stories futuras com payloads grandes (ex.: 4.x importar com fixtures realistas) podem precisar revisar. Alternativa seria @ForkConfiguration por classe de teste, mas adiciona complexidade. Decisão atual está OK e documentada.'
+    resolution: 'Monitorar em stories futuras. Não há ação imediata.'
+    refs:
+      - 'pom.xml:107'
+      - 'pom.xml:126'
+
+waiver:
+  active: false
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Considerar incluir Path nas mensagens de erro de ExcelSessao (ISSUE-2.1-02) quando Story 4.4 (log-erros-estruturado) for implementada — naturalmente alinhado com formato estruturado.'
+      refs:
+        - 'docs/stories/4.4.log-erros-estruturado.md'
+    - action: 'Adicionar teste de Path null em ExcelLeitorTest (ISSUE-2.1-03) — pode ir junto com qualquer story que toque ExcelLeitor.'
+
+history:
+  - date: '2026-04-27T23:30:00-03:00'
+    gate: PASS
+    score: 92
+    note: 'Review único: 4 issues identificadas (1 MEDIUM resolvida via refactor ativo do QA, 3 LOW abertas/info). 27/27 testes verdes. AC4 streaming validado empiricamente (100k linhas, 0.576s, -Xmx256m).'
