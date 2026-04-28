@@ -76,7 +76,7 @@ public final class ExcelSessao implements AutoCloseable {
      * @return lista imutável; ordem preservada conforme as colunas no XLSX
      */
     public List<String> cabecalhos() {
-        return cabecalhos;
+        return List.copyOf(cabecalhos);
     }
 
     /**
