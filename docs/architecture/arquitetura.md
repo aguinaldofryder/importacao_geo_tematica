@@ -108,7 +108,7 @@ A conexão com PostgreSQL é **obrigatória** em todos os subcomandos que tocam 
 
 ```json
 {
-  "fluxo": "territorial",
+  "fluxo": "TERRITORIAL",
   "planilha": "TABELA_TERRITORIAL_V001.xlsx",
   "colunaCodigoImovel": "MATRICULA",
   "colunasFixas": {
