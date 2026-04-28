@@ -1,0 +1,25 @@
+{
+  "fluxo": "TERRITORIAL",
+  "planilha": "TABELA_TERRITORIAL_V001.xlsx",
+  "colunaCodigoImovel": "MATRICULA",
+  "colunasFixas": {
+    "AREA_TERRENO": "area_terreno",
+    "TESTADA": "testada_principal"
+  },
+  "colunasDinamicas": {
+    "TIPO_MURO": {
+      "status": "MAPEADO",
+      "idcampo": 142,
+      "tipo": "MULTIPLA_ESCOLHA",
+      "alternativas": {
+        "Alvenaria": 501,
+        "Madeira": 502
+      }
+    },
+    "COLUNA_NOVA": {
+      "status": "PENDENTE",
+      "motivo": "Nenhum campo encontrado com descricao='COLUNA_NOVA'",
+      "sugestoes": [140, 171]
+    }
+  }
+}

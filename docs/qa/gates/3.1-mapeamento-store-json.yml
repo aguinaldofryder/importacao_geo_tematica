@@ -1,0 +1,118 @@
+schema: 1
+story: '3.1'
+story_title: 'MapeamentoStore (Jackson JSON I/O do mapping.json)'
+gate: PASS
+status_reason: 'Implementação completa e bem-feita dos 11 ACs em uma story de fronteira de I/O. 21 testes novos (4 classes) cobrem round-trip, todos os 5 cenários de erro de carregamento (incluindo enum inválido com extração de path/valor) e a política @JsonInclude(NON_NULL) em ambas as variantes MAPEADO/PENDENTE. Fixture canônica idêntica ao exemplo da Arquitetura §5 e validada por comparação semântica via JsonNode.equals. O 6º catch ValueInstantiationException — adicionado após teste falho durante a implementação — está corretamente documentado nas Completion Notes; demonstra rigor (descoberta empírica vs. especulação). Padrão de marker class MapeamentoReflection consistente com DominioReflection da Story 2.2. Aderente a CONVENCOES.md (imports absolutos, PT, logger JBoss), AGENTS.md (pacote mapeamento/ como I/O puro), DDD/Clean (validação semântica delegada à Story 3.3 = single responsibility). 36/36 testes do pacote verdes em rerun (./mvnw -B test -Dtest=mapeamento.*Test).'
+reviewer: 'Quinn (Test Architect)'
+updated: '2026-04-28T20:30:00-03:00'
+
+quality_score: 95
+expires: '2026-05-12T20:30:00-03:00'
+
+evidence:
+  tests_reviewed: 21
+  tests_total_pacote_mapeamento: 36
+  tests_total_baseline_story: 95
+  risks_identified: 4
+  risks_resolved: 0
+  risks_deferred: 4
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Componente é fronteira de I/O sobre mapping.json em disco local, sem entrada de usuário externo nem dados sensíveis. Causa original das exceções preservada via getCause() (auditável); mensagens PT não vazam stacktrace ao usuário. Sem path traversal possível neste nível (Path é fornecido pelo orquestrador CLI, não por entrada externa).'
+  performance:
+    status: PASS
+    notes: 'mapping.json é arquivo pequeno (dezenas de colunas dinâmicas) lido uma vez por execução. Files.readString + objectMapper.readValue adequado; streaming/JsonParser não traria benefício. Pretty-print obrigatório por FR-08, overhead desprezível.'
+  reliability:
+    status: PASS
+    notes: 'Tratamento de erros exemplar: 6 catches ordenados do mais específico (InvalidFormatException — enum inválido com extração de path/valor) ao mais genérico (IOException), mensagens PT específicas para cada cenário. Construtores de records com fail-fast em null + normalização defensiva (trim, null→Map.of()). Imutabilidade dos records garante segurança em paralelismo futuro. Causa original sempre preservada.'
+  maintainability:
+    status: PASS
+    notes: 'Javadoc PT extensivo em todas as 6 classes/records novos documenta: contratos, fronteira (I/O vs. validação semântica), decisões arquiteturais (tipos boxed por NON_NULL, marker class por CONVENCOES.md §Native Image opção b, ObjectMapper via construtor para JUnit puro), referências às Stories que produzem/consomem. Ordem de catches comentada com rationale. Padrão simétrico ao DominioReflection da Story 2.2 facilita revisão futura.'
+
+top_issues:
+  - id: ISSUE-3.1-01
+    severity: low
+    status: OPEN
+    title: 'Cobertura de salvar() exercita apenas o caminho feliz; catches de IOException e JsonProcessingException não testados explicitamente'
+    description: 'MapeamentoStore.salvar (linhas 53-65) tem dois catches (JsonProcessingException → mensagem "Falha ao serializar..."; IOException → "Falha ao gravar..."), mas nenhum teste em MapeamentoStoreTest aciona qualquer um deles. O caminho feliz é coberto por roundTrip_preservaConteudo e fixtureCanonica_roundTripPreservaSemanticaJson. Risco residual baixo: a lógica de envelopamento em MapeamentoIoException é trivial e simétrica ao tratamento de carregar() (que tem cobertura completa). Adicionar `assertThrows(MapeamentoIoException.class, () -> store.salvar(m, Path.of("/diretorio/inexistente/x.json")))` exigiria 3 linhas. Já listado em Completion Notes.'
+    suggested_owner: dev
+    resolution: 'Adicionar 1-2 testes em MapeamentoStoreTest cobrindo IOException de salvar (caminho inválido em diretório inexistente). JsonProcessingException é difícil de simular sem mock — aceitável como fallback defensivo. Pode ser feito junto com Story 3.4 (comando mapear) ou como housekeeping.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/MapeamentoStore.java:58-64'
+      - 'src/test/java/br/com/arxcode/tematica/geo/mapeamento/MapeamentoStoreTest.java'
+
+  - id: ISSUE-3.1-02
+    severity: low
+    status: OPEN
+    title: 'AccessDeniedException em carregar() não testada — sensível a UID/sistema de arquivos'
+    description: 'AC7 prescreve mensagem PT específica para AccessDeniedException ("Arquivo de mapeamento sem permissão de leitura: %s"), implementada corretamente em MapeamentoStore.carregar (linhas 87-89). Não há teste cobrindo este catch. Justificativa de pular: criar arquivo + setReadable(false) é frágil em CI (depende de uid != 0; root ignora chmod) e pode falhar em Windows. Em sistemas POSIX típicos com usuário não-root o teste funcionaria; pode ser adicionado com @EnabledOnOs(LINUX) + @DisabledIfSystemProperty para CI rodando como root. Risco de regressão baixo (catch isolado, mensagem hardcoded).'
+    suggested_owner: dev
+    resolution: 'Opcional — adicionar teste com @EnabledOnOs(LINUX) usando Files.setPosixFilePermissions para forçar 0000. Alternativamente aceitar como debt formal (já está na Improvements Checklist da QA Results).'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/MapeamentoStore.java:87-89'
+
+  - id: ISSUE-3.1-03
+    severity: low
+    status: OPEN
+    title: 'Mensagem do catch ValueInstantiationException é "Campo obrigatório ausente..." mesmo para futuras validações cross-field'
+    description: 'O 6º catch (MapeamentoStore.carregar:101-109) extrai a mensagem da causa (IllegalArgumentException do construtor canônico) e prefixa com "Campo obrigatório ausente no mapeamento: ". Hoje é semanticamente correto, pois a única validação dos records é null-check em campo top-level. Quando Story 3.3 (MapeamentoValidador) entrar — ou se algum dia validações de invariante adicionais forem incluídas no construtor de ColunaDinamica/Mapeamento — o prefixo "Campo obrigatório ausente" pode ficar enganador (ex.: "Campo obrigatório ausente no mapeamento: trim resultou em string vazia"). Não bloqueia a 3.1 (que delega validação semântica à 3.3 explicitamente).'
+    suggested_owner: dev
+    resolution: 'Considerar trocar prefixo por algo mais neutro (ex.: "Mapeamento inválido: " ou "Construção do mapeamento falhou: ") quando Story 3.3 / qualquer story futura introduzir validações cross-field nos construtores. Atualizar testes correspondentes.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/MapeamentoStore.java:101-109'
+      - 'src/test/java/br/com/arxcode/tematica/geo/mapeamento/MapeamentoStoreTest.java:90-102'
+
+  - id: ISSUE-3.1-04
+    severity: info
+    status: INFO
+    title: 'Mapeamento.colunasFixas/colunasDinamicas não-null preservados por referência (sem cópia defensiva)'
+    description: 'O construtor de Mapeamento (linhas 51-52) substitui null por Map.of(), mas mapas não-nulos são preservados por referência — o teste mapasNaoNulos_saoPreservadosPorReferencia documenta esse comportamento explicitamente. Decisão consistente com semântica de records (campos finais), mas mistura "defensivo no null" com "trust no caller no não-null". Risco prático muito baixo: chamadores são (a) Jackson, que produz mapas não compartilhados, e (b) testes/orquestrador 3.4 que constrói o objeto e descarta. Aliasing causaria bug apenas se o caller mantivesse referência ao mapa e o mutasse após construir o record. Sem ação imediata.'
+    suggested_owner: dev
+    resolution: 'Nenhuma. Registrado para auditoria e como nota de cuidado para Story 3.4 (orquestração) e 3.2 (auto-mapeador): construir o mapa final antes de passar ao construtor de Mapeamento; não reutilizar/mutar a referência depois.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/Mapeamento.java:51-52'
+      - 'src/test/java/br/com/arxcode/tematica/geo/mapeamento/MapeamentoTest.java:88-93'
+
+waiver:
+  active: false
+
+ddd_clean_architecture:
+  status: PASS
+  notes: 'MapeamentoStore é adapter de I/O puro (Hexagonal/Clean): zero regra de negócio, zero validação semântica (delegada à Story 3.3), apenas serialização/desserialização Jackson. Records são Value Objects imutáveis (Mapeamento, ColunaDinamica). Exceção MapeamentoIoException herda de ImportacaoException (raiz da hierarquia da Story 2.1) — vocabulário de erros estável. Marker class MapeamentoReflection segue padrão DominioReflection (CONVENCOES.md §Native Image opção b). Pacote mapeamento/ alinhado com Arquitetura §8. Construtor (ObjectMapper) permite testes JUnit puros sem container Quarkus — alinhado à decisão consciente da Story 2.2 (custo de @QuarkusTest evitado em camadas sem CDI real).'
+
+dependent_stories_risk:
+  status: LOW
+  notes:
+    - story: '3.2 (AutoMapeador)'
+      risk: 'Baixo — produz Mapeamento via construtor público estável. Atenção ao ISSUE-3.1-04: construir mapas localmente e descartar referência após passar ao record. Cobertura @JsonInclude(NON_NULL) já garante que itens MAPEADO/PENDENTE serializam exatamente como o §5.'
+    - story: '3.3 (MapeamentoValidador)'
+      risk: 'Baixo — lê via MapeamentoStore.carregar(); contrato de erro estável (MapeamentoIoException PT). Quando 3.3 introduzir validações cross-field, considerar refinamento de mensagem do catch ValueInstantiationException (ISSUE-3.1-03). Validador deve operar sobre o record já desserializado, não estender o store.'
+    - story: '3.4 (comando mapear)'
+      risk: 'Baixo — invoca store.salvar() com Path do CLI. Catches IOException já cobrem permissão/disco cheio com mensagem PT. Testes do CLI devem usar @TempDir.'
+    - story: '3.5 (comando validar) e 4.5 (comando importar)'
+      risk: 'Baixo — invocam store.carregar() com Path do CLI. As 5 mensagens PT específicas (ausente, sem permissão, JSON corrompido, campo ausente, enum inválido) permitem ao CLI mapear para exit codes distintos conforme Arquitetura §7.3.'
+    - story: '6.1 (native-image hardening) e 6.3 (e2e binário)'
+      risk: 'Baixo — MapeamentoReflection já registra Mapeamento e ColunaDinamica. Enums fora do array targets é correto. Sem reflexão dinâmica no store. Story 6.1 deve apenas confirmar que o binário consegue de/serializar a fixture canônica.'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Adicionar teste de IOException em salvar() (ISSUE-3.1-01) — pode ir junto da Story 3.4 quando o comando mapear for wirado.'
+      owner: '@dev'
+    - action: 'Considerar teste de AccessDeniedException com @EnabledOnOs(LINUX) (ISSUE-3.1-02) — opcional, baixa prioridade.'
+      owner: '@dev'
+    - action: 'Refinar prefixo do catch ValueInstantiationException quando Story 3.3 introduzir validações cross-field (ISSUE-3.1-03).'
+      owner: '@dev (via Story 3.3)'
+    - action: 'Investigar a contagem 95 vs. 99 testes (Completion Notes da 3.1) no Épico 6 de hardening de CI — registrado pelo @dev como tarefa P3.'
+      owner: '@dev'
+
+history:
+  - date: '2026-04-28T20:30:00-03:00'
+    gate: PASS
+    score: 95
+    note: 'Review único. AC1–AC11 verdes; 21 testes novos (4 classes) cobrem todos os 7 sub-itens de AC10. Fixture mapping-exemplo-territorial.json idêntica ao exemplo §5 e validada por JsonNode.equals (AC8). Tratamento de erros impecável: 6 catches ordenados, mensagens PT específicas, causa preservada. Desvios da implementação documentados em Completion Notes (T4 mesclado com Classificacao da 2.4; 6º catch ValueInstantiationException descoberto via teste; AssertJ não no classpath → JUnit Jupiter puro). 4 issues registradas, todas LOW/INFO: cobertura ausente em salvar (alta facilidade de adicionar), AccessDeniedException não testada (sensível a UID), prefixo da mensagem ValueInstantiationException pode ficar enganador no futuro, e nota de cuidado sobre aliasing de mapas não-null em Mapeamento. Nenhuma bloqueia o gate. Pronta para *close-story 3.1.'
