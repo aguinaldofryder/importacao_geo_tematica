@@ -1,0 +1,116 @@
+schema: 1
+story: '2.4'
+story_title: 'ClassificadorColunas (Fase 1 do pipeline: código / fixas / dinâmicas)'
+gate: PASS
+status_reason: 'Implementação completa dos 13 ACs com qualidade alta. AC7 implementado com desvio técnico justificado (Optional<Set<String>>+default method em vez de @WithDefault("") direto) — root cause SRCFG00040 do SmallRye CollectionConverter; contrato público (Set<String> territorial()/predial() retornando vazio por default) preservado e validado por ColunasFixasConfigDefaultsTest. Pipeline determinístico com precedência codigo>fixas>dinamicas explícita, normalização Locale.ROOT (anti Turkish-bug), Classificacao imutável via LinkedHashMap+unmodifiableMap (escolha superior ao Map.copyOf prescrito em T1, garante ordem). 74/74 testes verdes (baseline 55 + 19 novos: 15 classificador + 4 config). Aderente a CONVENCOES.md (imports absolutos, PT, sem System.out), AGENTS.md (mapeamento/ como serviço de domínio puro sem CDI), DDD/Hexagonal (classifier desacoplado da fonte de config). Stories dependentes 3.2 e 3.4 consomem API estável — risco baixo.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2026-04-28T09:45:00-03:00'
+
+quality_score: 92
+expires: '2026-05-12T09:45:00-03:00'
+
+evidence:
+  tests_reviewed: 19
+  tests_total: 74
+  risks_identified: 4
+  risks_resolved: 0
+  risks_deferred: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    ac_gaps: []
+    ac_with_justified_deviation: [7]
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Sem dados sensíveis; classificador é função pura sobre List<String>. Exceções não vazam stacktrace ao usuário (ImportacaoException carrega apenas mensagem PT). ColunasFixasConfig só lê propriedades de configuração não-secretas.'
+  performance:
+    status: PASS
+    notes: 'Algoritmo O(N) em headers × O(1) lookup em Set<String>. Para planilhas com até 200 cabeçalhos, latência esperada < 1ms. Stateless permite reuso seguro entre threads sem alocação adicional. Sem benchmark dedicado (não exigido nesta story).'
+  reliability:
+    status: PASS
+    notes: 'Validação fail-fast em 3 camadas: (1) entrada (AC8 — null/empty/blank), (2) duplicatas (AC6 — antes da classificação), (3) ausência de código (AC5 — após varredura). Imutabilidade defensiva no record Classificacao garante que mutações pós-construção são impossíveis. Locale.ROOT elimina classe inteira de bugs de locale (Turkish-i, etc.).'
+  maintainability:
+    status: PASS
+    notes: 'Javadoc PT extensiva em todas as 6 classes novas documenta: contratos, invariantes, precedência, decisões arquiteturais (placeholder em fixas.value, Locale.ROOT, ausência intencional de @ApplicationScoped). Pacote mapeamento/ alinhado com docs/architecture/arquitetura.md §8. Marker MapeamentoReflection segue padrão DominioReflection da Story 2.2 (CONVENCOES.md §Native Image opção b). Pipeline interno em ClassificadorColunas.classificar comentado em 5 etapas explícitas, facilita revisão e evolução.'
+
+top_issues:
+  - id: ISSUE-2.4-01
+    severity: medium
+    status: OPEN
+    title: 'AC7 prescreve @WithDefault("") em Set<String>, mas implementação usa Optional<Set<String>> + default method'
+    description: 'O texto do AC7 (story 2.4 linha 29 / Tasks T4 linhas 64-69) ainda lê "@WithDefault(\"\") (conjunto vazio)". A implementação real (ColunasFixasConfig.java:36-48) usa getters internos territorialOpt()/predialOpt() retornando Optional<Set<String>> e métodos default territorial()/predial() que delegam para Optional.orElse(Set.of()). Causa raiz: SmallRye Config emite SRCFG00040 ao tentar resolver string vazia para Set<String> (CollectionConverter trata "" como null), o que quebraria o startup do container Quarkus em outros @QuarkusTest. O contrato público observável (assinatura Set<String> territorial()/predial(), retorno vazio quando não configurado) é equivalente ao prescrito, e ColunasFixasConfigDefaultsTest valida exatamente isso. Documentado em Change Log e na seção "Desvio de implementação" da story (linha 183) e no Javadoc da própria interface. Risco residual: texto do AC continua "errado", podendo confundir reviewers futuros e métricas automáticas de aderência. Padrão idêntico ao ISSUE-2.3-01.'
+    resolution: 'Sugerido: @sm emenda AC7 (linha 29) e Tasks T4 (linhas 66-67) para "expor Set<String> territorial()/predial() com default vazio (implementado via Optional<Set<String>> internalOpt + default method para contornar SRCFG00040 do SmallRye CollectionConverter)" no momento do *close-story; OR @po aceita formalmente como erratum no fechamento. Não bloqueia gate — semântica observável é equivalente e está testada.'
+    refs:
+      - 'docs/stories/2.4.classificador-colunas.md:29'
+      - 'docs/stories/2.4.classificador-colunas.md:66-67'
+      - 'docs/stories/2.4.classificador-colunas.md:183'
+      - 'src/main/java/br/com/arxcode/tematica/geo/config/ColunasFixasConfig.java:34-48'
+      - 'src/test/java/br/com/arxcode/tematica/geo/config/ColunasFixasConfigDefaultsTest.java'
+
+  - id: ISSUE-2.4-02
+    severity: low
+    status: OPEN
+    title: 'Imports FQN inline em ClassificadorColunas e Classificacao reduzem aderência a CONVENCOES.md §Imports'
+    description: 'CONVENCOES.md §Imports prescreve "um import por linha". ClassificadorColunas.java usa nomes totalmente qualificados inline em vez de imports declarados em pelo menos 4 pontos: linha 73 (java.util.List<String> headers no parâmetro), linha 89 (new java.util.LinkedHashMap<>()), linha 111 (java.util.List<String> dinamicas, new java.util.ArrayList<>()). Classificacao.java tem o mesmo padrão na linha 50 (java.util.Collections.unmodifiableMap). Funcionalmente correto e sem warning de compilação, mas cria assimetria interna (LinkedHashMap, Locale, Map, Set já são importados no topo de ClassificadorColunas) e prejudica grep/refactor. Em ClassificadorColunasTest.java, o mesmo ocorre nas linhas 131-143 com org.junit.jupiter.params.provider.Arguments inline.'
+    resolution: 'Refactor trivial: adicionar imports declarados de java.util.List, java.util.ArrayList e java.util.Collections em ClassificadorColunas/Classificacao, e org.junit.jupiter.params.provider.Arguments no teste. Pode ser feito junto com qualquer story futura que toque esses arquivos (ex.: 3.4 ao fazer wiring do classificador) ou como housekeeping isolado. Não bloqueia gate.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/ClassificadorColunas.java:73'
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/ClassificadorColunas.java:89'
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/ClassificadorColunas.java:111'
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/Classificacao.java:50'
+      - 'src/test/java/br/com/arxcode/tematica/geo/mapeamento/ClassificadorColunasTest.java:131-143'
+
+  - id: ISSUE-2.4-03
+    severity: low
+    status: OPEN
+    title: 'Classificacao usa LinkedHashMap+Collections.unmodifiableMap em vez do Map.copyOf prescrito em T1 — desvio benéfico não anotado'
+    description: 'A Task T1 (story linha 42) prescreve "Reatribuir fixas = Map.copyOf(fixas) e dinamicas = List.copyOf(dinamicas) para garantir imutabilidade (cópias defensivas)". A implementação real (Classificacao.java:50) usa fixas = Collections.unmodifiableMap(new LinkedHashMap<>(fixas)) — escolha tecnicamente SUPERIOR porque Map.copyOf retorna uma implementação que NÃO garante ordem de iteração (preservada em Java 21 atual mas não contratualmente), enquanto LinkedHashMap+unmodifiable garante ordem AC1 conforme prescrito. dinamicas mantém List.copyOf como prescrito (List.copyOf preserva ordem por contrato). Trade-off: novo objeto LinkedHashMap aloca um pouco mais que ImmutableCollections.MapN, custo desprezível. Risco residual: divergência texto-da-task vs código pode confundir auditoria.'
+    resolution: 'Sugerido: @sm emenda T1 (linha 42) substituindo "Map.copyOf(fixas)" por "Collections.unmodifiableMap(new LinkedHashMap<>(fixas)) — escolhido em vez de Map.copyOf para garantir contratualmente a ordem de iteração exigida pelo AC1" no *close-story. Não bloqueia gate.'
+    refs:
+      - 'docs/stories/2.4.classificador-colunas.md:42'
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/Classificacao.java:49-51'
+
+  - id: ISSUE-2.4-04
+    severity: info
+    status: INFO
+    title: 'CabecalhoDuplicadoException usa "vezes" mesmo para count=2 (gramaticalmente "vezes" é OK em PT, mas formato "X aparece N vezes" deveria ser "X aparece N vez(es)")'
+    description: 'A mensagem formatada por CabecalhoDuplicadoException.formatar (linha 26) escreve "''X'' aparece N vezes". Para N=2 está correto em PT ("aparece 2 vezes"). Não há cenário N=1 (filtrado em ClassificadorColunas.java:95 — só duplicatas com count>1 chegam aqui), portanto não há bug funcional. Apenas registro: o exemplo do AC6 (linha 28 da story) mostra exatamente "aparece 2 vezes", então está conforme. Sem ação.'
+    resolution: 'Nenhuma. Registrado apenas para completude da auditoria.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/dominio/excecao/CabecalhoDuplicadoException.java:24-28'
+      - 'docs/stories/2.4.classificador-colunas.md:28'
+
+waiver:
+  active: false
+
+ddd_clean_architecture:
+  status: PASS
+  notes: 'Pacote mapeamento/ é serviço de domínio puro (Hexagonal/Clean): ClassificadorColunas é função estatélss sem dependências de adapter (não usa CDI, JDBC, fastexcel ou reflexão externa). Entrada 100% por argumento (List<String> + String + Set<String> + bool no construtor) — máximo de testabilidade unitária. Classificacao é Value Object imutável (record + cópias defensivas). Exceções continuam centralizadas em dominio/excecao (vocabulário de erros estável). ColunasFixasConfig é adapter de configuração no pacote config/ (não infiltra a regra de classificação). Decisão explícita de NÃO usar @ApplicationScoped documentada em Dev Notes — alinhada com princípio "domínio não conhece framework". Separação classifier ⊥ config-source permite, no futuro, ler colunasFixasConhecidas de banco/JSON sem mexer no classificador. MapeamentoReflection segue padrão DominioReflection (CONVENCOES.md §Native Image opção b).'
+
+dependent_stories_risk:
+  status: LOW
+  notes:
+    - story: '3.2 (auto-mapeador)'
+      risk: 'Baixo — Classificacao expõe slots codigo/fixas/dinamicas estáveis e imutáveis. Slot fixas com value=header (placeholder) está explicitamente documentado em Javadoc (Classificacao.java:24-30) e em Dev Notes da própria 2.4 — Story 3.2 sabe que precisa resolver o value para o nome físico da coluna na tabela principal (consultando INFORMATION_SCHEMA ou catálogo estático). Acoplamento mínimo: 3.2 lê o record, não modifica.'
+    - story: '3.4 (comando mapear / orquestração + export JSON)'
+      risk: 'Baixo — wiring trivial: new ClassificadorColunas(config.mapeamento().caseSensitive(), config.mapeamento().trimEspacos()) + escolha do Set entre config.territorial() e config.predial() conforme Fluxo. ColunasFixasConfig.territorial()/predial() já estão no contrato público com defaults vazios. Classificacao registrada em MapeamentoReflection garante serialização Jackson em native-image sem anotações extras (AC12 verificado). Único ponto de atenção: 3.4 deve diferenciar catch (ColunaCodigoAusenteException vs CabecalhoDuplicadoException vs ImportacaoException) para emitir exit codes distintos conforme Arquitetura §7.3 — base para isso já está pronta (subtipos específicos).'
+    - story: '6.1 (native-image hardening)'
+      risk: 'Baixo — MapeamentoReflection já registrado. ClassificadorColunas e exceções não usam reflexão. Sem campos estáticos mutáveis. Construtor público sem @Inject (não exige beans-config para CDI). Único ponto a verificar em 6.1: que Optional<Set<String>> em ConfigMapping interface não exige reflect-config adicional (provavelmente já coberto pelo SmallRye Config build steps).'
+    - story: '6.4 (manual operador / application.properties.exemplo)'
+      risk: 'Baixo — chaves importacao.colunas-fixas.territorial e importacao.colunas-fixas.predial documentadas em Javadoc da ColunasFixasConfig (linhas 13-17). Story 6.4 só precisa replicar no exemplo.'
+
+recommendations:
+  immediate:
+    - action: 'Emendar texto do AC7 e da Task T4 (ou aceitar como erratum) no *close-story para reconhecer formalmente Optional<Set<String>>+default method como implementação válida — elimina ISSUE-2.4-01.'
+      owner: '@sm ou @po'
+  future:
+    - action: 'Substituir imports FQN inline por imports declarados em ClassificadorColunas/Classificacao/ClassificadorColunasTest (ISSUE-2.4-02) — pode ir junto da Story 3.4 quando o classificador for instanciado pelo comando mapear.'
+    - action: 'Anotar em File List da story 2.4 o desvio benéfico Map.copyOf → Collections.unmodifiableMap(new LinkedHashMap) (ISSUE-2.4-03), ou emendar T1 no *close-story.'
+    - action: 'Confirmar em Story 6.1 que Optional<Set<String>> em @ConfigMapping interface não exige entrada adicional em reflect-config.json para native-image.'
+
+history:
+  - date: '2026-04-28T09:45:00-03:00'
+    gate: PASS
+    score: 92
+    note: 'Review único: 13/13 ACs cobertos (AC7 com desvio técnico justificado por SRCFG00040 do SmallRye, contrato público preservado). 74/74 testes verdes confirmados em rerun (mvn -B test). 19 testes novos: 15 ClassificadorColunasTest (12 cenários AC10 a–l, com 5 invocations parametrizadas para entrada inválida h/i) + 2 ColunasFixasConfigDefaultsTest + 2 ColunasFixasConfigOverrideTest. 4 issues registradas: 1 MEDIUM (ISSUE-2.4-01: emenda texto AC7), 2 LOW (imports FQN inline; desvio Map.copyOf → LinkedHashMap+unmodifiableMap não anotado), 1 INFO. Implementação aderente a CONVENCOES.md (imports absolutos, jakarta.*, PT, sem System.out), AGENTS.md (pacote mapeamento/ como domínio puro sem CDI conforme Arquitetura §8), DDD/Hexagonal (Ports & Adapters: classifier desacoplado de config-source via parâmetro). Imutabilidade do Classificacao verificada (LinkedHashMap+unmodifiableMap garante ordem AC1 — escolha superior ao Map.copyOf prescrito). Locale.ROOT deliberado documentado. MapeamentoReflection package-private espelha DominioReflection da 2.2. Stories dependentes 3.2/3.4/6.1/6.4 consomem API pública estável — risco baixo em todas.'
