@@ -58,8 +58,8 @@ quarkus.log
 *.exe
 reports/
 
-# Config com credenciais
-config/application.properties
+# Config com credenciais na raiz (diretório inteiro — nunca versionar)
+/config/
 
 # Saída gerada pela ferramenta
 saida/

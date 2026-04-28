@@ -1,0 +1,36 @@
+# ============================================================
+# application.properties — arquivo de configuração externa
+# Copiar para ./config/application.properties ao lado do binário
+# ============================================================
+
+# === Banco de dados (obrigatórios) ===
+# Tipo do banco de dados
+quarkus.datasource.db-kind=postgresql
+# URL de conexão JDBC
+quarkus.datasource.jdbc.url=jdbc:postgresql://host:5432/iptu
+# Usuário do banco de dados
+quarkus.datasource.username=usuario
+# Senha do banco de dados
+quarkus.datasource.password=senha
+# Schema padrão (todas as tabelas do domínio estão em 'aise')
+quarkus.datasource.jdbc.additional-jdbc-properties.currentSchema=aise
+
+# === Saída ===
+# Diretório onde os arquivos .sql e .log serão gravados (padrão: ./saida)
+importacao.saida.diretorio=./saida
+# Adiciona timestamp ao nome dos arquivos de saída (padrão: true)
+importacao.saida.sufixo-timestamp=true
+
+# === Comportamento do mapeamento ===
+# Comparação de colunas diferencia maiúsculas de minúsculas (padrão: false)
+importacao.mapeamento.case-sensitive=false
+# Remove espaços em branco nas extremidades dos valores (padrão: true)
+importacao.mapeamento.trim-espacos=true
+
+# === Logging ===
+# Nível de log da aplicação (padrão: INFO)
+quarkus.log.level=INFO
+# Habilita gravação de log em arquivo
+quarkus.log.file.enable=true
+# Caminho do arquivo de log
+quarkus.log.file.path=./saida/importacao-geo.log
