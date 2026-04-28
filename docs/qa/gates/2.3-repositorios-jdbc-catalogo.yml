@@ -1,0 +1,119 @@
+schema: 1
+story: '2.3'
+story_title: 'Repositórios JDBC do catálogo (Campo, Alternativa, GrupoCampo) — read-only'
+gate: PASS
+status_reason: 'Implementação completa e disciplinada dos 12 ACs. AC5 implementado com desvio justificado (Instance<DataSource> em vez de DataSource direto) — alinhado com cli.ValidarConexaoCommand:46 e necessário para coexistir com %test.quarkus.datasource.active=false dos demais @QuarkusTest. Semântica observável preservada (CDI sem qualifier). 55/55 testes verdes, BUILD SUCCESS confirmado em re-run. Padrão uniforme entre os 3 repositórios, Javadoc PT com invariante read-only documentada, AC7 verificado por reflexão. Stories dependentes (3.2, 3.3, 4.5) consomem API pública estável — desvio do AC5 é transparente para elas. Pronto para promoção a Done após emenda formal do texto do AC5 ou aceitação como erratum no *close-story.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2026-04-28T08:30:00-03:00'
+
+quality_score: 88
+expires: '2026-05-12T08:30:00-03:00'
+
+evidence:
+  tests_reviewed: 7
+  risks_identified: 5
+  risks_resolved: 0
+  risks_deferred: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    ac_gaps: []
+    ac_with_justified_deviation: [5]
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Sem credenciais hardcoded em produção. Senha do PostgreSQLContainer é local de teste e não escapa do escopo do resource (restrictToAnnotatedClass=true). PreparedStatement em todas as queries — sem risco de SQL injection.'
+  performance:
+    status: PASS
+    notes: 'Queries simples sobre 3 tabelas pequenas do catálogo (não-críticas). Container PostgreSQL 16-alpine startup ~1.4s observado. Sem N+1 (cada método é 1 query). Cache deferido corretamente (premature optimization).'
+  reliability:
+    status: PASS
+    notes: 'try-with-resources aninhado em todos os métodos públicos garante release de Connection/PreparedStatement/ResultSet. SQLException sempre encapsulada em ImportacaoException com cause original preservado. listarPorCampo(idInexistente) retorna lista vazia — comportamento defensivo correto e testado (AC11.e). FK aise.campo→aise.grupocampo + aise.alternativa→aise.campo validada no DDL inline.'
+  maintainability:
+    status: PASS
+    notes: 'Javadoc PT em todas as 3 classes documenta: read-only, schema esperado (aise), referências cruzadas a stories consumidoras (3.2, 3.3, 4.5). Constantes SQL_* no topo facilitam grep e revisão. Padrão uniforme entre os 3 repositórios (DRY conceitual sem abstração prematura). Construtor @Inject com final ajuda native-image (Story 6.1).'
+
+top_issues:
+  - id: ISSUE-2.3-01
+    severity: medium
+    status: OPEN
+    title: 'AC5 prescreve injeção direta de DataSource, mas implementação usa Instance<DataSource> sem emenda formal do AC'
+    description: 'O texto do AC5 (story 2.3 linha 27) ainda lê "injetam javax.sql.DataSource via @jakarta.inject.Inject". A implementação usa Instance<DataSource> (lookup programático) — necessário porque %test.quarkus.datasource.active=false aplicado aos demais @QuarkusTest dispararia InactiveBeanException no lifecycle CDI mesmo sem invocar métodos. O desvio é tecnicamente correto e replicado de cli.ValidarConexaoCommand:46 (mesmo motivo). Está documentado em Change Log v1.1 e em seção dedicada da story. Risco residual: o texto do AC continua "errado", podendo confundir reviewers futuros e métricas de aderência.'
+    resolution: 'Sugerido: @sm emenda AC5 para "injetam DataSource via CDI (preferencialmente Instance<DataSource> para tolerar %test.quarkus.datasource.active=false em outros testes)" no momento do *close-story; OR @po aceita formalmente como erratum no fechamento. Não bloqueia gate — semântica observável é equivalente.'
+    refs:
+      - 'docs/stories/2.3.repositorios-jdbc-catalogo.md:27'
+      - 'docs/stories/2.3.repositorios-jdbc-catalogo.md:204-216'
+      - 'src/main/java/br/com/arxcode/tematica/geo/catalogo/CampoRepository.java:48-53'
+      - 'src/test/java/br/com/arxcode/tematica/geo/cli/PostgresResource.java'
+
+  - id: ISSUE-2.3-02
+    severity: low
+    status: OPEN
+    title: 'CampoRepository.listarTodos() usa try-with-resources em sequência única (assimetria com listarPorFluxo)'
+    description: 'Em listarPorFluxo (linha 64-67) o ResultSet é aberto em try-with-resources aninhado dentro do escopo da PreparedStatement — padrão consistente com AlternativaRepository e GrupoCampoRepository. Em listarTodos (linha 88-90) Connection, PreparedStatement e ResultSet são todos no mesmo try. Funciona (close LIFO está correto e não há setX), mas reduz uniformidade interna da classe e do pacote.'
+    resolution: 'Refactor trivial: mover ResultSet para try aninhado interno, mantendo simetria com listarPorFluxo. Pode ser feito junto com qualquer story futura que toque o pacote. Não bloqueia gate.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/catalogo/CampoRepository.java:87-99'
+
+  - id: ISSUE-2.3-03
+    severity: low
+    status: OPEN
+    title: 'CatalogoPostgresResource executa seed inteiro como uma única chamada Statement.execute'
+    description: 'lerRecurso retorna o conteúdo inteiro do seed-catalogo.sql como String e Statement.execute executa o bloco como um único batch implícito. O driver PostgreSQL aceita múltiplos statements separados por ";" em um único execute, mas o comportamento não é portável e fica frágil se o seed evoluir com mistura de DDL/DML/SELECT ou se outro driver for adotado.'
+    resolution: 'Quando o seed crescer ou outro fluxo precisar reusar o pattern, considerar split por ";" + execute por statement, ou adotar Flyway/Liquibase (decisão deferida corretamente em Dev Notes). Não há ação imediata.'
+    refs:
+      - 'src/test/java/br/com/arxcode/tematica/geo/catalogo/CatalogoPostgresResource.java:69-70'
+
+  - id: ISSUE-2.3-04
+    severity: low
+    status: OPEN
+    title: 'Sem teste para fluxo de erro (SQLException → ImportacaoException) do AC8'
+    description: 'AC8 prescreve encapsulamento de SQLException em ImportacaoException com mensagem PT + cause original. Os testes cobrem o caminho feliz e edge case (lista vazia), mas não exercem o branch de exception (ex.: shutdown do container no meio de uma query, ou DataSource indisponível). Cobertura atual é por inspeção visual + invariante de tipo.'
+    resolution: 'Sugestão futura: adicionar teste com @Mock DataSource (sem @QuarkusTest) que injeta uma SQLException e verifica (a) o tipo ImportacaoException, (b) presença do nome do método/parâmetro na mensagem, (c) cause preservado. Custo trivial; pode ser parte de uma story de hardening de testes ou da própria Story 3.2 quando consumir o repositório.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/catalogo/CampoRepository.java:74-77'
+      - 'src/main/java/br/com/arxcode/tematica/geo/catalogo/AlternativaRepository.java:61-64'
+      - 'src/main/java/br/com/arxcode/tematica/geo/catalogo/GrupoCampoRepository.java:61-64'
+
+  - id: ISSUE-2.3-05
+    severity: info
+    status: INFO
+    title: 'GrupoCampoRepositoryTest cobre apenas funcionalidade existente — sem teste explícito para funcionalidade inexistente'
+    description: 'AC11.f exige listarPorFuncionalidade("TERRENO") → 1 grupo (coberto). Não há teste explícito para listarPorFuncionalidade("INEXISTENTE") → lista vazia. Implementação trivialmente correta (mesmo pattern de AlternativaRepository.listarPorCampo testado em AC11.e), mas paridade de cobertura defensiva entre os 3 repositórios seria desejável.'
+    resolution: 'Adicionar 1 teste assertEmpty para funcionalidade inexistente. Custo trivial, não bloqueia gate.'
+    refs:
+      - 'src/test/java/br/com/arxcode/tematica/geo/catalogo/GrupoCampoRepositoryTest.java:20-28'
+
+waiver:
+  active: false
+
+ddd_clean_architecture:
+  status: PASS
+  notes: 'Camada catalogo/ é adapter fino (Hexagonal/Clean): consome JDBC e devolve records imutáveis do domínio (dominio/), sem vazar Connection/ResultSet para fora. SRP respeitado (1 repositório por agregado de catálogo). Sem dependências invertidas ou acoplamento com camadas superiores (cli/, mapeamento/). Decisão de manter 3 repositórios separados (vs CatalogoRepository unificado) está alinhada com architecture/arquitetura.md §8 e justificada em Dev Notes. ImportacaoException da camada dominio/excecao mantém o vocabulário de erros centralizado.'
+
+dependent_stories_risk:
+  status: LOW
+  notes:
+    - story: '3.2 (auto-mapeador)'
+      risk: 'Baixo — API listarPorFluxo(Fluxo) + listarPorCampo(long) cobre 100% do necessário para casar headers de planilha com campo.descricao.'
+    - story: '3.3 (validador de mapeamento)'
+      risk: 'Baixo — listarTodos() e listarPorCampo retornam dados suficientes para validar referências cruzadas.'
+    - story: '4.5 (comando importar / coerção MULTIPLA_ESCOLHA)'
+      risk: 'Baixo — listarPorCampo defensivamente retorna lista vazia (testado AC11.e) em vez de null/exception. Encapsulamento de SQLException impede vazamento de checked exception.'
+    - story: '6.1 (native-image hardening)'
+      risk: 'Baixo — construtor @Inject com final e ausência de field injection é amigável a GraalVM. Records de domínio já têm DominioReflection. Único item futuro: validar que Instance<DataSource> não exige reflect-config.json adicional (provavelmente já coberto pelo Quarkus Agroal extension).'
+
+recommendations:
+  immediate:
+    - action: 'Emendar texto do AC5 (ou aceitar como erratum) no *close-story para reconhecer formalmente Instance<DataSource> como implementação válida — elimina ISSUE-2.3-01.'
+      owner: '@sm ou @po'
+  future:
+    - action: 'Padronizar try-with-resources aninhado em CampoRepository.listarTodos() (ISSUE-2.3-02) na próxima story que tocar o pacote catalogo/.'
+    - action: 'Adicionar teste de error-path com SQLException mockada (ISSUE-2.3-04) — pode ir em Story 3.2 quando consumir o repositório.'
+    - action: 'Adicionar teste defensivo listarPorFuncionalidade("INEXISTENTE") (ISSUE-2.3-05) para paridade de cobertura entre os 3 repositórios.'
+
+history:
+  - date: '2026-04-28T08:30:00-03:00'
+    gate: PASS
+    score: 88
+    note: 'Review único: 12/12 ACs cobertos (AC5 com desvio técnico justificado e replicado de Story 1.5). 55/55 testes verdes em rerun (mvn -B test). 5 issues identificadas (1 MEDIUM aberta — emenda do AC5; 3 LOW abertas; 1 INFO). Implementação aderente a CONVENCOES.md (imports absolutos, jakarta.*, PT, sem System.out), AGENTS.md (JDBC puro sem ORM, schema aise) e DDD/Clean (adapter fino sem leak de JDBC). Stories dependentes 3.2/3.3/4.5 consomem API pública estável — risco baixo.'
