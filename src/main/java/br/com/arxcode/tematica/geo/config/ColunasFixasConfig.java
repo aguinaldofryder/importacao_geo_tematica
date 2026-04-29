@@ -6,6 +6,8 @@ import io.smallrye.config.WithName;
 import java.util.Optional;
 import java.util.Set;
 
+import br.com.arxcode.tematica.geo.dominio.Fluxo;
+
 /**
  * Catálogo externo (configurável via {@code application.properties}) de cabeçalhos
  * que devem ser tratados como <em>colunas fixas</em> para cada fluxo de importação.
@@ -45,5 +47,25 @@ public interface ColunasFixasConfig {
 
     default Set<String> predial() {
         return predialOpt().orElse(Set.of());
+    }
+
+    /**
+     * Retorna o conjunto de colunas fixas conhecidas para o {@code fluxo} informado.
+     * Método de conveniência adicionado pela Story 3.4 para uso pelo
+     * {@code MapearCommand} (orquestrador), evitando duplicação de {@code switch}
+     * no caller.
+     *
+     * @param fluxo {@link Fluxo#TERRITORIAL} ou {@link Fluxo#PREDIAL}
+     * @return conjunto (possivelmente vazio) de cabeçalhos fixos
+     * @throws IllegalArgumentException se {@code fluxo == null}
+     */
+    default Set<String> por(Fluxo fluxo) {
+        if (fluxo == null) {
+            throw new IllegalArgumentException("Fluxo não pode ser nulo em ColunasFixasConfig.por(Fluxo).");
+        }
+        return switch (fluxo) {
+            case TERRITORIAL -> territorial();
+            case PREDIAL -> predial();
+        };
     }
 }

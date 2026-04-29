@@ -5,7 +5,7 @@ INSERT INTO grupocampo (id, funcionalidade) VALUES
   (1, 'TERRENO'),
   (2, 'SEGMENTO');
 
-INSERT INTO campo (id, descricao, tipo, ativo, idgrupocampo) VALUES
+INSERT INTO campo (id, descricao, tipo, ativo, idgrupo) VALUES
   (10, 'AREA_TERRENO',      'DECIMAL',          'S', 1),
   (11, 'TIPO_MURO',         'MULTIPLA_ESCOLHA', 'S', 1),
   (12, 'OBSERVACAO',        'TEXTO',            'S', 1),

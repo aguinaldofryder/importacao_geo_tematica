@@ -43,7 +43,7 @@ public class CatalogoPostgresResource implements QuarkusTestResourceLifecycleMan
         + "  descricao VARCHAR(200) NOT NULL,"
         + "  tipo VARCHAR(30) NOT NULL,"
         + "  ativo CHAR(1) NOT NULL,"
-        + "  idgrupocampo BIGINT NOT NULL REFERENCES aise.grupocampo(id)"
+        + "  idgrupo BIGINT NOT NULL REFERENCES aise.grupocampo(id)"
         + ");";
 
     private static final String DDL_ALTERNATIVA =
