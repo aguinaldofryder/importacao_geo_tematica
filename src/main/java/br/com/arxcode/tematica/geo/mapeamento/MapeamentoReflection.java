@@ -18,6 +18,8 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
  *   <li>{@link Classificacao} — Story 2.4 (resultado da Fase 1 do pipeline).</li>
  *   <li>{@link Mapeamento} — Story 3.1 (forma serializada do {@code mapping.json}).</li>
  *   <li>{@link ColunaDinamica} — Story 3.1 (entrada de {@code colunasDinamicas}).</li>
+ *   <li>{@link EntradaAutoMapeamento} — Story 3.2 (parameter object do
+ *       {@link AutoMapeador}; instanciado pelo orquestrador 3.4).</li>
  * </ul>
  *
  * <p><strong>Por que enums não entram em {@code targets}:</strong>
@@ -28,9 +30,9 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
  * <p>A validação completa do {@code reflect-config} efetivo em binário nativo
  * é responsabilidade das Stories 6.1 (perfil nativo) e 6.3 (e2e binário).
  *
- * <p>Stories: 2.4 — ClassificadorColunas; 3.1 — MapeamentoStore.
+ * <p>Stories: 2.4 — ClassificadorColunas; 3.1 — MapeamentoStore; 3.2 — AutoMapeador.
  */
-@RegisterForReflection(targets = {Classificacao.class, Mapeamento.class, ColunaDinamica.class})
+@RegisterForReflection(targets = {Classificacao.class, Mapeamento.class, ColunaDinamica.class, EntradaAutoMapeamento.class})
 final class MapeamentoReflection {
 
     private MapeamentoReflection() {
