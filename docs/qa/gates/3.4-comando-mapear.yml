@@ -1,0 +1,121 @@
+schema: 1
+story: '3.4'
+story_title: 'Comando mapear (orquestrador da Fase 1+2)'
+gate: PASS
+status_reason: 'Implementação completa e disciplinada dos 16 ACs. Pipeline de 6 etapas com fail-fast, exit codes alinhados FR-16, relatório PT em 3 blocos, reuso do mensagemAmigavel da 1.4 (NFR-07), DISTINCT skippable (AC13) e LinkedHashSet para determinismo (AC14). 6 cenários E2E AC15 verdes (distribuídos em 3 arquivos por restrição de @TestProfile). Build verde — 136 testes (excede meta ≥118). JaCoCo MapearCommand 86% linhas / 78% branches (excede meta ≥75%). Convenções AGENTS.md/CONVENCOES.md respeitadas: zero System.out, zero wildcard imports, logger JBoss, mensagens PT, helper para PostgresResource criando schema aise para paridade com produção. Decisões T5/T6/AC13 documentadas com rationale claro nas Completion Notes (fixture inline via fastexcel, arquivos separados por profile, normalizar duplicado). 4 issues LOW/INFO registradas, nenhuma bloqueia o gate.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2026-04-28T22:50:00-03:00'
+
+quality_score: 90
+expires: '2026-05-12T22:50:00-03:00'
+
+evidence:
+  tests_reviewed: 6
+  tests_total_story: 136
+  tests_baseline_anterior: 113
+  testes_novos_introduzidos: 23
+  jacoco_mapear_command_lines: '86%'
+  jacoco_mapear_command_branches: '78%'
+  jacoco_mapear_command_fluxoconverter_lines: '78%'
+  jacoco_codigo_imovel_config_lines: '39%'
+  jacoco_colunas_fixas_config_lines: '76%'
+  risks_identified: 4
+  risks_resolved: 0
+  risks_deferred: 4
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'NFR-07 verificado explicitamente em MapearCommandFalhaConexaoTest: nem a senha real do container (S3cr3t!Pass#99) nem a senha injetada (senha-errada-1234) aparecem no stderr; apenas a mensagem PT mapeada por ValidarConexaoCommand.mensagemAmigavel. Reuso correto do catálogo PT de SQLState evita drift. Path de --saida vem do CLI (não de entrada externa não confiável); zero injeção SQL possível (queries são read-only paramétricas no CampoRepository/AlternativaRepository). Credenciais não logadas em INFO/ERROR.'
+  performance:
+    status: PASS
+    notes: 'NFR-04 (streaming) respeitado: ExcelSessao.linhas() consumido em UMA varredura (forEach), com acumulação seletiva apenas para headers MULTIPLA_ESCOLHA detectados. AC13 (skippable second-pass) implementado corretamente — quando catálogo do fluxo não tem MULTIPLA_ESCOLHA, retorna Map.of() sem varrer. LinkedHashSet O(1) para teste de duplicidade preservando ordem de inserção (determinismo do JSON). Catálogo carregado uma vez (~50-200 campos) — sem N+1.'
+  reliability:
+    status: PASS
+    notes: 'Pipeline 6-etapas com try/catch específicos: cada falha mapeada para mensagem PT distinta + exit 1. Conexão validada fail-fast antes de abrir planilha (~2-5s economizados em falhas de credencial). Catálogo vazio detectado e bloqueado com mensagem específica. ImportacaoException (ExcelLeitor) capturada separadamente de Exception genérica. Logger.error preserva stacktrace para diagnóstico DBA. ExcelSessao usado em try-with-resources.'
+  maintainability:
+    status: PASS
+    notes: 'Javadoc PT extensivo no MapearCommand documenta as 6 etapas + referências cruzadas às Stories 1.4/2.1/2.3/2.4/3.1/3.2. CodigoImovelConfig com docstring justificando default MATRICULA + decisão de paralelo a ColunasFixasConfig (vs. inflar ImportacaoConfig). Padrão @Dependent + @Unremovable consistente com ValidarConexaoCommand. FluxoConverter como inner class é localizado e testável. Helper normalizar() duplicado tem comentário explicando por que duplicação é aceita por ora (evitar refactor da 3.2 fechada). Adições não-previstas (FluxoConverter, arquivos separados por profile, Instance<DataSource>, schema aise no PostgresResource) documentadas em Completion Notes com rationale claro.'
+
+top_issues:
+  - id: ISSUE-3.4-01
+    severity: low
+    status: OPEN
+    title: 'Cobertura JaCoCo de CodigoImovelConfig em 39% — ramos predial(), por(null), isBlank() não testados'
+    description: 'Os defaults declaram comportamentos que não são exercitados por nenhum teste dedicado: (a) ramo predial() (apenas territorial é usado pelo MapearCommandTest fluxo TERRITORIAL); (b) guard `if (fluxo == null)` em por(); (c) ramo `filter(s -> !s.isBlank())` quando a propriedade está em branco; (d) cenário com override da propriedade (testar resolução real do ConfigMapping). A interface é trivial mas é parte do contrato externo (FR-03) e tem 4 ramos não cobertos. Risco residual baixo (defaults são MATRICULA hard-coded em 2 lugares — drift improvável), mas deixa lacuna de regressão.'
+    suggested_owner: dev
+    resolution: 'Criar CodigoImovelConfigTest análogo ao ColunasFixasConfigOverrideTest existente (~30 linhas): 4 testes — default ausente, override territorial, override predial, override em branco aplicando default; mais um teste unitário do guard `por(null)` direto na interface (instanciar via SmallRyeConfigBuilder ou usar @QuarkusTest). Pode ser feito em housekeeping junto da 3.5/4.5.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/config/CodigoImovelConfig.java:50-72'
+
+  - id: ISSUE-3.4-02
+    severity: low
+    status: OPEN
+    title: 'Helper normalizar() duplicado em 3 lugares (AutoMapeador, ClassificadorColunas, MapearCommand) — drift latente'
+    description: 'AC13 reconheceu o trade-off mas a duplicação aumentou de 2 para 3 cópias. Hoje as 3 implementações são equivalentes (strip + lower com flags da ImportacaoConfig.Mapeamento), mas qualquer evolução (ex.: NFD-normalize para acentos, regex de espaços múltiplos) exigirá tocar 3 arquivos com risco de drift silencioso (causaria desalinhamento de match entre Fase 1, Fase 2 e DISTINCT). Justificativa documentada (não tocar Story 3.2 Done) é razoável; debt explícito.'
+    suggested_owner: dev
+    resolution: 'Extrair NormalizadorTextual (record imutável ou utility class final) em br.com.arxcode.tematica.geo.mapeamento, com único método estático ou método de instância por configuração. AutoMapeador, ClassificadorColunas e MapearCommand passam a delegar. Refactor pode entrar como item técnico da Story 4.5/6.1 (hardening nativo) ou story dedicada de housekeeping.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/cli/MapearCommand.java:305-311'
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/AutoMapeador.java'
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/ClassificadorColunas.java'
+
+  - id: ISSUE-3.4-03
+    severity: low
+    status: OPEN
+    title: 'Etapa (3) emite e.getMessage() cru ao falhar consultando catálogo — risco residual NFR-07'
+    description: 'MapearCommand.call linhas 182-184: `err.println("✗ Falha ao carregar catálogo: " + e.getMessage())`. Para SQLException disparada pelo CampoRepository, e.getMessage() do PostgreSQL é geralmente seguro (não inclui credenciais), mas, em cenários extremos (driver legado ou wrappers customizados), poderia incluir partes do JDBC URL. AC7 prescreve uso exclusivo de mensagemAmigavel para falhas relacionadas a conexão; aqui é falha de QUERY, não de conexão (já validada na etapa 1). Risco prático baixo, mas inconsistente com o tratamento da etapa 1.'
+    suggested_owner: dev
+    resolution: 'Substituir e.getMessage() por mensagem genérica + log do throwable: `err.println("✗ Falha ao carregar catálogo: consulte o log para detalhes.")` mantendo `LOG.error("Falha ao consultar catálogo", e)` que já está presente. Stacktrace fica disponível em ./saida/importacao-geo.log (FR-16) sem expor à CLI. Ajuste de 1 linha.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/cli/MapearCommand.java:182-184'
+
+  - id: ISSUE-3.4-04
+    severity: info
+    status: INFO
+    title: 'Acumulação DISTINCT só ativa quando match Campo é único (size == 1) — comportamento implícito não documentado em AC'
+    description: 'MapearCommand.acumularDistintos linhas 271-274 inclui o header em headersMultiplaEscolha apenas se `matches.size() == 1 && tipo == MULTIPLA_ESCOLHA`. Se houver homonímia no catálogo (dois Campo com mesma descrição, um TEXTO outro MULTIPLA_ESCOLHA — caso raro mas possível), o header é silenciosamente excluído da varredura DISTINCT. AutoMapeador (Story 3.2) trata homonímia como AMBIGUO (status PENDENTE), mas a interação entre a decisão de skip do DISTINCT e o resultado final do auto-mapeamento não é testada. Comportamento atual está OK (se ambíguo o item já vai para PENDENTE — não precisa de DISTINCT), mas merece um teste explícito que documente esse fluxo.'
+    suggested_owner: dev
+    resolution: 'Opcional — adicionar teste E2E em MapearCommandTest com cenário: catálogo com 2 campos descricao=TIPO_MURO (um MULTIPLA_ESCOLHA, um TEXTO) + planilha com header TIPO_MURO. Verificar que ColunaDinamica resultante tem status PENDENTE e que acumulação foi pulada (sem custo de varredura).'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/cli/MapearCommand.java:271-274'
+
+waiver:
+  active: false
+
+ddd_clean_architecture:
+  status: PASS
+  notes: 'MapearCommand é orquestrador puro (Application Service) — wiring de adapters de I/O (DataSource, ExcelLeitor, MapeamentoStore) e domínio (Mapeamento). Zero regra de negócio nova: ClassificadorColunas (Story 2.4) e AutoMapeador (Story 3.2) permanecem stateless e testáveis sem CDI. Pacote cli/ alinhado com Arquitetura §3 (CLI). CodigoImovelConfig segue mesmo padrão arquitetural de ColunasFixasConfig (interface @ConfigMapping com defaults via método default e helper por(Fluxo)). Validação semântica do Mapeamento permanece delegada à Story 3.3 (MapeamentoValidador) — single responsibility do mapear preservado. Reuso de mensagemAmigavel da ValidarConexaoCommand (DRY) sem extrair prematuramente para utilitário (regra de Sandi Metz: 3 callers para refatorar — hoje só 2). FluxoConverter é detalhe de adapter picocli, corretamente encapsulado como inner class de MapearCommand.'
+
+dependent_stories_risk:
+  status: LOW
+  notes:
+    - story: '3.5 (comando validar)'
+      risk: 'Baixo — reusa MapeamentoStore.carregar produzido aqui; contrato já estável desde Story 3.1. Schema aise/Testcontainers: PostgresResource agora cria o schema, então MapearCommandTest é o template para a 3.5.'
+    - story: '4.5 (comando importar)'
+      risk: 'Baixo — consome o mapping.json. Padrão de exit codes (0 sucesso, 1 falha de infra) estabelecido aqui é reusável. Pipeline 6-etapas com fail-fast é referência arquitetural para a Fase 3.'
+    - story: '6.1/6.2/6.3 (native-image hardening + E2E nativo)'
+      risk: 'Baixo — MapearCommand é CDI bean + picocli (Quarkus extensions lidam com reflexão); CodigoImovelConfig é @ConfigMapping (Quarkus lida). Sem @RegisterForReflection necessário. Recomendar smoke test rodando o binário nativo com a fixture sintética dos testes.'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Criar CodigoImovelConfigTest cobrindo override predial, default em branco e guard por(null) — eliminar gap de cobertura ISSUE-3.4-01.'
+      owner: '@dev'
+    - action: 'Extrair NormalizadorTextual compartilhado entre AutoMapeador, ClassificadorColunas e MapearCommand (ISSUE-3.4-02) em story de housekeeping ou junto da Story 4.5.'
+      owner: '@dev'
+    - action: 'Substituir e.getMessage() por mensagem genérica na etapa (3) de carga do catálogo (ISSUE-3.4-03) — defesa em profundidade NFR-07.'
+      owner: '@dev'
+    - action: 'Considerar teste E2E de homonímia no catálogo cobrindo interação skip-DISTINCT vs AutoMapeador AMBIGUO (ISSUE-3.4-04) — documenta comportamento implícito.'
+      owner: '@dev'
+    - action: 'Marcar itens DoD finais da story: *validate-story-draft 3.4 e *close-story 3.4 conforme workflow do PO.'
+      owner: '@po'
+
+history:
+  - date: '2026-04-28T22:50:00-03:00'
+    gate: PASS
+    score: 90
+    note: 'Review único. AC1–AC16 verdes. Build ./mvnw -B verify ✓ — 136 testes (excede meta ≥118). JaCoCo MapearCommand 86%/78% (excede meta ≥75%). 6 cenários E2E AC15 implementados em 3 arquivos por restrição de @TestProfile (decisão documentada). Adições não previstas (FluxoConverter, Instance<DataSource>, schema aise no PostgresResource, fixture inline) todas justificadas. Convenções respeitadas: zero System.out, zero wildcard imports, logger JBoss, mensagens PT, NFR-07 testado explicitamente sem vazamento de senha. 4 issues LOW/INFO registradas: cobertura CodigoImovelConfig (39%), duplicação normalizar() (3x), e.getMessage() cru na etapa 3, e nota sobre interação skip-DISTINCT com homonímia. Nenhuma bloqueia. Recomendação: status → Done após *validate-story-draft + *close-story do @po.'

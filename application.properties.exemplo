@@ -32,6 +32,21 @@ importacao.mapeamento.case-sensitive=false
 # Remove espaços em branco nas extremidades dos valores (padrão: true)
 importacao.mapeamento.trim-espacos=true
 
+# === Coluna de código do imóvel (Story 3.4) ===
+# Nome físico da coluna que identifica o imóvel na planilha .xlsx, por fluxo.
+# Quando ausente ou em branco, aplica-se o default 'MATRICULA' (alinhado ao
+# banco do município de Paranacity). Sobrescreva caso seu município use outro
+# nome (ex.: INSCRICAO_IMOBILIARIA).
+#importacao.codigo-imovel.territorial=MATRICULA
+#importacao.codigo-imovel.predial=MATRICULA
+
+# === Colunas fixas conhecidas (Story 2.4) ===
+# Lista de cabeçalhos a tratar como colunas fixas (UPDATE direto na tabela
+# principal), por fluxo. Quando ausente, o conjunto fica vazio: todas as
+# colunas que não são código serão tratadas como dinâmicas.
+#importacao.colunas-fixas.territorial=AREA_TERRENO,TESTADA
+#importacao.colunas-fixas.predial=PADRAO_CONSTRUTIVO
+
 # === Logging ===
 # Nível de log da aplicação (padrão: INFO)
 quarkus.log.level=INFO
