@@ -58,7 +58,7 @@ class MapearCommandTest {
 
     static final String DDL =
         "CREATE TABLE IF NOT EXISTS aise.grupocampo (id BIGINT PRIMARY KEY, funcionalidade VARCHAR(50));"
-        + "CREATE TABLE IF NOT EXISTS aise.campo (id BIGINT PRIMARY KEY, descricao VARCHAR(200), tipo VARCHAR(50), ativo CHAR(1), idgrupocampo BIGINT);"
+        + "CREATE TABLE IF NOT EXISTS aise.campo (id BIGINT PRIMARY KEY, descricao VARCHAR(200), tipo VARCHAR(50), ativo CHAR(1), idgrupo BIGINT);"
         + "CREATE TABLE IF NOT EXISTS aise.alternativa (id BIGINT PRIMARY KEY, descricao VARCHAR(200), idcampo BIGINT);";
 
     @BeforeEach

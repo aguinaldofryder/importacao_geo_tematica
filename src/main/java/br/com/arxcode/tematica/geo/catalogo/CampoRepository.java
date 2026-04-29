@@ -35,13 +35,13 @@ import java.util.List;
 public class CampoRepository {
 
     private static final String SQL_LISTAR_POR_FLUXO =
-        "SELECT c.id, c.descricao, c.tipo, c.ativo, c.idgrupocampo "
+        "SELECT c.id, c.descricao, c.tipo, c.ativo, c.idgrupo "
         + "FROM campo c "
-        + "JOIN grupocampo g ON c.idgrupocampo = g.id "
+        + "JOIN grupocampo g ON c.idgrupo = g.id "
         + "WHERE g.funcionalidade = ? AND c.ativo = 'S'";
 
     private static final String SQL_LISTAR_TODOS =
-        "SELECT c.id, c.descricao, c.tipo, c.ativo, c.idgrupocampo "
+        "SELECT c.id, c.descricao, c.tipo, c.ativo, c.idgrupo "
         + "FROM campo c "
         + "WHERE c.ativo = 'S'";
 
@@ -104,7 +104,7 @@ public class CampoRepository {
             rs.getString("descricao"),
             Tipo.valueOf(rs.getString("tipo")),
             "S".equals(rs.getString("ativo")),
-            rs.getLong("idgrupocampo")
+            rs.getLong("idgrupo")
         );
     }
 }
