@@ -34,4 +34,16 @@ class FluxoTest {
     void fluxos_distintos_tem_funcionalidades_distintas() {
         assertNotEquals(Fluxo.TERRITORIAL.funcionalidade(), Fluxo.PREDIAL.funcionalidade());
     }
+
+    // ---------- Story 4.2: colunaChave() ----------
+
+    @Test
+    void territorial_colunaChave_eh_tribcadastrogeral_idkey() {
+        assertEquals("tribcadastrogeral_idkey", Fluxo.TERRITORIAL.colunaChave());
+    }
+
+    @Test
+    void predial_colunaChave_eh_idkey() {
+        assertEquals("idkey", Fluxo.PREDIAL.colunaChave());
+    }
 }

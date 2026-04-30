@@ -17,40 +17,47 @@ package br.com.arxcode.tematica.geo.dominio;
  * um quebraria comunicação com usuários ou com DBA. Por isso a assimetria é mantida
  * e formalizada em código.
  *
- * <h2>Tabelas físicas — parte do contrato</h2>
- * <p>Os nomes retornados por {@link #tabelaPrincipal()} e {@link #tabelaRespostas()}
- * são parte do contrato com o banco IPTU e <strong>não</strong> devem ser configuráveis.
- * Alterá-los exige mudança de código com revisão de DBA.
+ * <h2>Tabelas físicas e coluna chave — parte do contrato</h2>
+ * <p>Os nomes retornados por {@link #tabelaPrincipal()}, {@link #tabelaRespostas()}
+ * e {@link #colunaChave()} são parte do contrato com o banco IPTU e
+ * <strong>não</strong> devem ser configuráveis. Alterá-los exige mudança de código
+ * com revisão de DBA. A {@code colunaChave()} é a coluna física da tabela principal
+ * usada no {@code WHERE} dos {@code UPDATE} (Story 4.2) e como referência no JOIN
+ * com a tabela de respostas (Story 4.3).
  *
  * <p>Consumidores: Story 2.3 (repositórios JDBC), Story 2.4 (classificador de colunas),
- * Story 3.2 (auto-mapeador), Stories 5.x (geração de SQL).
+ * Story 3.2 (auto-mapeador), Stories 4.2 / 4.3 / 4.5 (geração e orquestração de SQL).
  *
  * <p>Story: 2.2 — Domínio: enums e records.
+ * Story 4.2 — adicionado {@link #colunaChave()}.
  */
 public enum Fluxo {
 
     /**
      * Fluxo Territorial — planilha {@code TABELA_TERRITORIAL_V001.xlsx}.
      * Tabela principal: {@code tribcadastroimobiliario}; respostas: {@code respostaterreno};
-     * funcionalidade no catálogo: {@code "TERRENO"}.
+     * funcionalidade no catálogo: {@code "TERRENO"}; coluna chave do JOIN:
+     * {@code tribcadastrogeral_idkey}.
      */
-    TERRITORIAL("TERRENO", "tribcadastroimobiliario", "respostaterreno"),
+    TERRITORIAL("TERRENO", "tribcadastroimobiliario", "respostaterreno", "tribcadastrogeral_idkey"),
 
     /**
      * Fluxo Predial — planilha {@code TABELA_PREDIAL_V001.xlsx}.
      * Tabela principal: {@code tribimobiliariosegmento}; respostas: {@code respostasegmento};
-     * funcionalidade no catálogo: {@code "SEGMENTO"}.
+     * funcionalidade no catálogo: {@code "SEGMENTO"}; coluna chave do JOIN: {@code idkey}.
      */
-    PREDIAL("SEGMENTO", "tribimobiliariosegmento", "respostasegmento");
+    PREDIAL("SEGMENTO", "tribimobiliariosegmento", "respostasegmento", "idkey");
 
     private final String funcionalidade;
     private final String tabelaPrincipal;
     private final String tabelaRespostas;
+    private final String colunaChave;
 
-    Fluxo(String funcionalidade, String tabelaPrincipal, String tabelaRespostas) {
+    Fluxo(String funcionalidade, String tabelaPrincipal, String tabelaRespostas, String colunaChave) {
         this.funcionalidade = funcionalidade;
         this.tabelaPrincipal = tabelaPrincipal;
         this.tabelaRespostas = tabelaRespostas;
+        this.colunaChave = colunaChave;
     }
 
     /**
@@ -78,5 +85,19 @@ public enum Fluxo {
      */
     public String tabelaRespostas() {
         return tabelaRespostas;
+    }
+
+    /**
+     * Coluna física da tabela principal usada como chave no {@code WHERE} dos
+     * {@code UPDATE} (Story 4.2 — {@code SqlGeradorUpdate}) e como referência no
+     * JOIN com a tabela de respostas (Story 4.3 — {@code SqlGeradorUpsert}):
+     * {@code tribcadastrogeral_idkey} (territorial) ou {@code idkey} (predial).
+     *
+     * <p>Origem dos literais: {@code docs/architecture/arquitetura.md} §1
+     * (joins {@code tribcadastroimobiliario.tribcadastrogeral_idkey = respostaterreno.referencia}
+     * e {@code tribimobiliariosegmento.idkey = respostasegmento.referencia}).
+     */
+    public String colunaChave() {
+        return colunaChave;
     }
 }

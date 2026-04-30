@@ -1,0 +1,173 @@
+schema: 1
+story: '4.2'
+story_title: 'SqlGeradorUpdate (tabela principal, colunas fixas)'
+gate: PASS
+status_reason: 'Implementação exemplar dos 14 ACs em módulo crítico (NFR-09 nominal — geração de SQL). 64 testes novos (SqlEscape 7 + ResultadoUpdate 9 + LinhaMapeada 14 + SqlGeradorUpdate 22 + Fluxo +2) cobrindo todos os ACs com paramétricos abrangentes (@EnumSource(Fluxo.class) em 8 cenários CON-03 + 2 caso degenerado + 1 colunaChave), organização @Nested por AC e smoke de segurança CON-03 dedicado em 4 vetores (happy/celulasNulas/aspasNoCodigo/injectionNoCodigo) × 2 fluxos. Inspeção linha-por-linha de SqlGeradorUpdate.java confirma: nenhum caminho emite literal INSERT (única string SQL hard-coded na linha 145 começa com "UPDATE "); escape de aspas no WHERE delegado a Coercionador.coagirTexto que delega a SqlEscape.aspas (refactor T1 fecha ISSUE-4.1-02). Cobertura JaCoCo confirmada por inspeção do relatório: SqlGeradorUpdate 90%/85% (≥ meta NFR-09 80%), SqlEscape 100% (sem branches), ResultadoUpdate 100%/100%, LinhaMapeada 100%/100%, Fluxo 100% (regressão zero), Coercionador 100%/100% (regressão zero confirmada — exigência DoD T1). Função pura sem CDI, records imutáveis com cópias defensivas via LinkedHashMap+unmodifiableMap (espelha Classificacao.java:51-52), validação de args como IllegalArgumentException (não NPE) conforme AC5. AC10 (invariante CON-03 bloqueante) implementado como teste programático em 8 execuções @ParameterizedTest. AC11 (escape WHERE) cobre vetores reais: O''Brien e 1''; DROP TABLE x; --. 285/285 testes verdes em ./mvnw -B verify (31s, JVM mode). Aderente a CONVENCOES.md (imports absolutos, lowercase, PT-only, sem System.out, sem Logger pois função pura), AGENTS.md (geracao/ para SQL builders, mapeamento/ para VO de linha, regra invariável "nunca INSERT na tabela principal"), Constitution (Quality First, Story-Driven). Tratamento adequado das 3 issues VAL do gate v1.1 (LinkedHashMap explícito em fixtures + Javadoc de premissa; teste documental de formato AC9; interpretação T5 Passo 4 com Javadoc). Decisão Done justificada. Pronta para *close-story 4.2 após PR mergeado.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2026-04-30T10:30:00-03:00'
+
+quality_score: 91
+expires: '2026-05-14T10:30:00-03:00'
+
+evidence:
+  tests_reviewed: 64
+  tests_total_baseline_story: 221
+  tests_total_apos_story: 285
+  tests_delta: 64
+  build:
+    command: './mvnw -B verify'
+    result: 'BUILD SUCCESS'
+    duration_seconds: 31
+    mode: 'JVM'
+  coverage:
+    sql_gerador_update:
+      instructions: '90%'
+      branches: '85%'
+      lines: '36/39'
+      methods: '2/2'
+      meta_nfr09: '≥ 80% — atingida com folga'
+    sql_escape:
+      instructions: '100%'
+      branches: 'n/a (sem branches)'
+      lines: '1/1'
+      methods: '1/1'
+    resultado_update:
+      instructions: '100%'
+      branches: '100%'
+      lines: '10/10'
+      methods: '4/4'
+    linha_mapeada:
+      instructions: '100%'
+      branches: '100%'
+      lines: '10/10'
+      methods: '1/1'
+    fluxo:
+      instructions: '100%'
+      branches: 'n/a'
+      lines: '13/13'
+      methods: '6/6'
+    coercionador_regressao:
+      instructions: '100%'
+      branches: '100%'
+      lines: '49/49'
+      methods: '8/8'
+      observacao: 'Regressão zero pós-refactor T1 (delegação para SqlEscape.aspas) — exigência DoD atendida.'
+  risks_identified: 4
+  risks_resolved: 0
+  risks_deferred: 4
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    ac_gaps: []
+    given_when_then:
+      AC1: 'Given construtor canônico de LinhaMapeada, When codigoImovel null/blank ou maps null, Then valida (IAE PT) ou normaliza para Map.of() com cópia defensiva via LinkedHashMap+unmodifiableMap — coberto por LinhaMapeadaTest (14 testes: construtor_camposValidos, construtor_codigoImovelNullOuBlank @ParameterizedTest com 6 variantes, construtor_celulasFixasNull, construtor_celulasDinamicasNull, construtor_ambosMapsNull, celulasFixas_ordemPreservada, celulasFixas_imutavel, celulasDinamicas_imutavel, copia_defensiva_isolaMutacaoExterna)'
+      AC2: 'Given enum Fluxo, When TERRITORIAL.colunaChave() ou PREDIAL.colunaChave(), Then retorna "tribcadastrogeral_idkey" e "idkey" respectivamente — coberto por FluxoTest.territorial_colunaChave_eh_tribcadastrogeral_idkey e predial_colunaChave_eh_idkey; integração validada em SqlGeradorUpdateTest.colunaChave_eUsadaNoWhere_paraCadaFluxo (@EnumSource ambos fluxos)'
+      AC3: 'Given SqlEscape.aspas(s), When s contém aspas/backslash/newline/injection, Then duplica aspas e mantém demais caracteres literais — coberto por SqlEscapeTest (7 testes: nullEntrada_lancaNpe, stringVazia, semAspas @ParameterizedTest com 3 variantes, newline_preservada, umaAspa, multiplasAspas, tentativaInjection_neutralizada). Refactor T1 do Coercionador: coagirTexto agora delega a SqlEscape.aspas (verificado no diff Coercionador.java:95) — método privado escaparAspas removido (linhas 154-165 antigas). Cobertura Coercionador permanece 100%/100% (regressão zero confirmada por JaCoCo)'
+      AC4: 'Given fábricas de ResultadoUpdate, When sucesso(null/blank) ou falha(null/empty), Then IAE PT; quando válido constroi imutável — coberto por ResultadoUpdateTest (9 testes: sucesso_sqlValido, sucesso_sqlNulOuBlank @ParameterizedTest com NullAndEmptySource + 3 whitespace, falha_listaValida, falha_listaNula, falha_listaVazia, erros_listaImutavel, construtorCanonico_errosNulos_normalizaParaListaVazia, ok_retornaTrue/False)'
+      AC5: 'Given SqlGeradorUpdate.gerar com qualquer parâmetro null, When invocado, Then IAE PT (não NPE) — coberto por SqlGeradorUpdateTest.ValidacaoDeArgumentos (4 testes: linhaNula, mapeamentoNulo, fluxoNulo, coercionadorNulo). Decisão @dev: "if (x == null) throw new IllegalArgumentException(...)" em vez de Objects.requireNonNull (que lança NPE) — alinhado ao contrato AC5'
+      AC6: 'Given mapeamento com colunas fixas em LinkedHashMap (ordem propositadamente não-alfabética Z/A/M/B), When gerar, Then SET respeita ordem de iteração + SQL em uma única linha terminada em ";" — coberto por SqlGeradorUpdateTest.colunasFixas_ordemDeIteracaoPreservada_noSetDoSql + happy paths territorial/predial validando a string SQL exata via assertEquals'
+      AC7: 'Given célula null/vazia/whitespace, When gerar, Then literal NULL no SQL via integração com Coercionador (Tipo.TEXTO) — coberto por CelulaVaziaOuNula (3 testes: celulaAusenteNaLinha_viraNullLiteral, celulaVazia_viraNullLiteral com "" e "  ", todasCelulasNull_aindaEmiteUpdateValido). Limitação TEXTO documentada no Javadoc da classe e na story'
+      AC8: 'Given mapeamento com colunasFixas() vazio, When gerar para qualquer Fluxo, Then ResultadoUpdate.falha(["Linha sem colunas fixas a atualizar"]), sem SQL emitido — coberto por CasoDegenerado.mapeamentoSemColunasFixas_retornaFalha @ParameterizedTest @EnumSource(Fluxo.class). Interpretação adotada (T5 Passo 4): "coluna = NULL" é UPDATE válido; degenerado é apenas mapeamento vazio'
+      AC9: 'Given falha de coerção em célula fixa ou codigoImovel, When acumular erros, Then ResultadoUpdate.falha com mensagens "Coluna ''<header>'': <erro>" e "Código do imóvel: <erro>" — coberto indiretamente por FormatoMensagemDeErro (2 testes documentais). Cobertura plena do ramo de acumulação fica para Story 4.3 (Tipo != TEXTO falha; TEXTO sempre passa para non-blank que é invariante de LinhaMapeada). Risco baixo: lógica é simples e validada por inspeção visual do código (linhas 117-118 e 130 do SqlGeradorUpdate.java)'
+      AC10: 'Given matriz de cenários (happy/celulasNulas/aspasNoCodigo/injectionNoCodigo) × ambos fluxos, When gerar, Then sql.toUpperCase().contains("INSERT INTO") == false e sql.startsWith("UPDATE ") — coberto por InvarianteNuncaInsert (4 @ParameterizedTest @EnumSource = 8 execuções). Reforçado por inspeção linha-por-linha: única string SQL hard-coded em SqlGeradorUpdate.java:145 começa com "UPDATE "'
+      AC11: 'Given codigoImovel "O''Brien" ou "1''; DROP TABLE x; --", When gerar, Then WHERE contém literal escapado "O''''Brien" ou "1''''; DROP TABLE x; --" inerte — coberto por EscapeNoWhere (3 testes: codigoComAspaSimples_escapadoNoWhere, tentativaInjectionNoCodigo_viraLiteralInerte, valorComAspasNaCelulaFixa_escapadoNoSet). Vetor real testado'
+      AC12: 'Verificado por inspeção do relatório JaCoCo gerado em ./mvnw -B verify: SqlGeradorUpdate 90%/85% (≥80% — meta NFR-09 atingida); SqlEscape 100% (sem branches); ResultadoUpdate 100%/100%; LinhaMapeada 100%/100%; Fluxo 100% (mantido); Coercionador 100%/100% (regressão zero exigida pela DoD T1 — confirmada)'
+      AC13: 'Inspeção das mensagens de erro hardcoded: todas em PT ("Código do imóvel não pode ser nulo ou em branco.", "SQL de sucesso não pode ser nulo ou em branco.", "Lista de erros não pode ser nula ou vazia em ResultadoUpdate.falha.", "Linha sem colunas fixas a atualizar", "Coluna ''<header>'': <erro>", "Código do imóvel: <erro>", validações IAE em SqlGeradorUpdate). Sem System.out.println. Sem Logger nas 4 classes novas (função pura). Imports absolutos confirmados. Pacotes lowercase. Aderente a CONVENCOES.md e NFR-01'
+      AC14: '`./mvnw -B verify` executou em 31s no JVM mode com 285/285 testes verdes (delta +64 sobre baseline 221 confirmado); quarkus-build OK; nenhuma dependência nova em pom.xml; reflect-config.json não tocado'
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Foco crítico desta story (CON-03 — sem PreparedStatement). Inspeção linha-por-linha de SqlGeradorUpdate.java: única string SQL hard-coded está na linha 145 (`"UPDATE " + fluxo.tabelaPrincipal() + " SET " + ...`) — começa com UPDATE; nenhuma ocorrência de INSERT em qualquer caminho de código. AC10 implementado como teste programático bloqueante com 8 execuções (@ParameterizedTest @EnumSource × 4 cenários: happy, celulasNulas, aspasNoCodigo, injectionNoCodigo) — não é comentário/documental. Escape de aspas no WHERE: codigoImovel passa por Coercionador.coagir(_, Tipo.TEXTO, _) → coagirTexto → SqlEscape.aspas (refactor T1) — vetores reais cobertos (O''Brien produz O''''Brien; injection 1''; DROP TABLE x; -- produz literal inerte 1''''; DROP TABLE x; -- entre aspas). Aspas em células fixas também escapadas pelo mesmo caminho. Resíduo: comportamento sob standard_conforming_strings=off (não-default) requer prefixo E para escapar backslash; assumido on conforme Dev Notes (registrado como risco arquitetural na Story 4.1, ainda válido). Vetores cobertos.'
+  performance:
+    status: PASS
+    notes: 'Função pura síncrona, sem I/O. Iteração linear O(n) sobre colunasFixas (n ≤ ~20 colunas fixas tipicamente em planilhas IPTU); ArrayList pré-dimensionado em gerar (linha 139: `new ArrayList<>(colunaParaLiteral.size())`); LinkedHashMap pré-alocado para preservar ordem. Concatenação de String com + (linhas 145-147) é compilada em StringBuilder pelo javac — não há otimização adicional necessária para escala IPTU. Nenhum estado mutável compartilhado — instanciável uma vez no orquestrador (Story 4.5) e thread-safe. Sem hot-path identificado. Cobertura desta dimensão é satisfatória.'
+  reliability:
+    status: PASS
+    notes: 'Erro como dado (ResultadoUpdate.falha com lista PT) preserva pipeline (PRD FR-13) — orquestrador da Story 4.5 loga e prossegue com próxima linha. Falhas de coerção de TODAS as células fixas + codigoImovel são acumuladas antes de retornar (não há short-circuit) — permite ao operador corrigir N células em uma única passada. Falha em qualquer célula → abandona o UPDATE inteiro (alinhado a AGENTS.md "Código imobiliário ausente → log de erro, pula a linha inteira" e à decisão de design da story). Validação de args como IllegalArgumentException (defeito de programação, não dado) distinta de ResultadoUpdate.falha (dado ruim) — separação clara de responsabilidades. Records imutáveis (ResultadoUpdate, LinhaMapeada) com cópias defensivas via LinkedHashMap+unmodifiableMap garantem isolamento. SqlGeradorUpdate é função pura sem estado — reproducibilidade absoluta. Caso degenerado (mapeamento vazio) tratado explicitamente com mensagem PT específica.'
+  maintainability:
+    status: PASS
+    notes: 'Javadoc PT extensivo nas 4 classes novas e no método novo de Fluxo: contratos, decisões arquiteturais (função pura sem CDI, Coercionador injetado por parâmetro, ordem determinística via LinkedHashMap, ResultadoUpdate vs Optional<String>, premissa de ordem do Mapeamento explícita, limitação Tipo.TEXTO documentada com referência a Story 4.2.1), referências às Stories que consomem (4.3 UPSERT, 4.5 ImportarCommand) e à Story 4.2.1 futura. Constantes nomeadas com semântica explícita (literal NULL, mensagens PT). Helpers (assertSemInsert, contarStatements) com Javadoc explicativo. Testes organizados em @Nested por AC com nomes descritivos snake_case_underscores em pt — facilita navegação. Sem AssertJ (alinhado a CONVENCOES.md e à Story 4.1). Refactor T1 (SqlEscape extraído) elimina duplicação futura nas Stories 4.3 e fecha ISSUE-4.1-02. Sem dívida técnica detectada além das LOW issues registradas. Tratamento adequado das 3 issues VAL-4.2-* do gate v1.1 da story (LinkedHashMap explícito em fixtures + Javadoc de premissa; teste documental de formato AC9; interpretação T5 Passo 4 com Javadoc).'
+
+top_issues:
+  - id: ISSUE-4.2-01
+    severity: low
+    status: OPEN
+    title: 'Mapeamento.colunasFixas() não força LinkedHashMap nem aplica cópia defensiva — premissa de ordem é externa'
+    description: 'O Javadoc de SqlGeradorUpdate.gerar (linhas 37-45) documenta corretamente que a ordem das colunas no SET segue Mapeamento.colunasFixas(), e que o caller que construa Mapeamento programaticamente deve usar LinkedHashMap. Os fixtures dos testes desta story já fazem isso (verificado em SqlGeradorUpdateTest:42,54,117,133,152,162,185,200). No caminho real, Jackson produz LinkedHashMap ao desserializar mapping.json (preservando ordem do classificador da Story 2.4). Contudo, Mapeamento.java não força LinkedHashMap nem aplica cópia defensiva — caller que passe HashMap perderia ordem silenciosamente. Risco baixo no curto prazo (não há call-site problemático), mas pendência de hardening da camada de modelo. @dev já registrou nas Completion Notes ("Não mexi em Mapeamento.java — escopo creep evitado"), decisão correta para não inflar a 4.2.'
+    suggested_owner: dev
+    resolution: 'Em uma futura story de hardening de Mapeamento (recomendado entre 4.5 e 6.1): adicionar cópia defensiva no construtor canônico de Mapeamento envolvendo colunasFixas em Collections.unmodifiableMap(new LinkedHashMap<>(...)) — espelha o padrão de Classificacao.java:51-52 e LinhaMapeada.java:57-62. Atualizar testes em conformidade. Risco de regressão: mínimo (Jackson já produz LinkedHashMap; testes já usam LinkedHashMap explícito).'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/Mapeamento.java'
+      - 'src/main/java/br/com/arxcode/tematica/geo/geracao/SqlGeradorUpdate.java:37-45'
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/LinhaMapeada.java:57-62'
+
+  - id: ISSUE-4.2-02
+    severity: low
+    status: OPEN
+    title: 'Caminho de acumulação de erros (AC9) exercitado apenas documentalmente — cobertura plena difere para Story 4.3'
+    description: 'AC9 contrata acumulação de N erros de coerção em uma única passada (mensagens "Coluna ''<header>'': <erro>" e "Código do imóvel: <erro>"). Como SqlGeradorUpdate usa exclusivamente Tipo.TEXTO nesta story (limitação 4.2 → 4.2.1) e TEXTO não falha para entradas non-blank (que é a invariante de LinhaMapeada via codigoImovel não-null/blank), o ramo de acumulação (linhas 117-118 e 130 de SqlGeradorUpdate.java) não é executado em runtime nos testes — JaCoCo reporta 90%/85% justamente por causa desses 3 missed branches. O @dev tratou isso em FormatoMensagemDeErro com testes documentais montando manualmente ResultadoUpdate.falha — válido para detectar mudança acidental no formato, mas não exercita o ramo real. Cobertura plena natural fica para Story 4.3 (UPSERT) que usará DECIMAL/DATA/MULTIPLA_ESCOLHA — tipos que falham. Sem ação imediata; risco baixo.'
+    suggested_owner: dev
+    resolution: 'Quando Story 4.3 (SqlGeradorUpsert) for revisada: confirmar que o ramo análogo de acumulação está plenamente coberto com Tipo != TEXTO. Opcionalmente, refatorar SqlGeradorUpdate para receber Tipo por coluna (Story 4.2.1 — tipagem completa) e nessa ocasião o ramo de acumulação será exercitado naturalmente. Não justifica iteração isolada na 4.2.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/geracao/SqlGeradorUpdate.java:117-118,130'
+      - 'src/test/java/br/com/arxcode/tematica/geo/geracao/SqlGeradorUpdateTest.java:265-290'
+
+  - id: ISSUE-4.2-03
+    severity: info
+    status: INFO
+    title: 'Asserção contarStatements em tentativaInjectionNoCodigo_naoEmiteInsert é heurística simplificada'
+    description: 'O método auxiliar contarStatements (SqlGeradorUpdateTest.java:380-385) conta apenas o ";" final do SQL, retornando 1 se sql.endsWith(";") senão 0. O comentário no código admite que ";" dentro de literal escapado não fecha statement no PostgreSQL — então a asserção "exatamente 1 statement" é aproximada. Em conjunto com a asserção sql.startsWith("UPDATE ") da mesma linha 368, o teste é funcionalmente correto (qualquer payload de injection no codigoImovel passa por Coercionador.coagirTexto que escapa aspas, neutralizando ; injetado). Cosmético: uma asserção semântica mais forte poderia usar regex que detecte "INSERT INTO" fora de aspas balanceadas, mas é over-engineering para o escopo. Sem ação.'
+    suggested_owner: dev
+    resolution: 'Sem ação. Se algum dia houver suspeita de bypass de escape, adicionar teste com parser SQL de verdade (ex.: jsqlparser) — não justifica nesta story.'
+    refs:
+      - 'src/test/java/br/com/arxcode/tematica/geo/geracao/SqlGeradorUpdateTest.java:346-385'
+
+  - id: ISSUE-4.2-04
+    severity: info
+    status: INFO
+    title: 'Limitação Tipo.TEXTO em colunas fixas é débito conhecido — Story 4.2.1 prevista'
+    description: 'AC7 documenta explicitamente que colunas fixas físicas tipo numeric/date que recebam valores em formato pt-BR ("1.234,56", "31/12/2025") podem falhar no banco se o cast implícito do PostgreSQL não aceitar o formato. Inteiros simples ("42" → "42") funcionam via cast implícito. Mitigação: limitação documentada no Javadoc de SqlGeradorUpdate (linhas 47-53) com referência explícita à Story 4.2.1 futura. Trade-off justificado em Dev Notes (refatoração transversal de Mapeamento.colunasFixas para incluir Tipo afeta 9+ arquivos de produção, 5+ testes, fixture JSON). PRD não exige tipagem completa nesta entrega. Sem ação imediata.'
+    suggested_owner: po
+    resolution: 'Refinar e priorizar Story 4.2.1 após Stories 4.3/4.4/4.5 entregues — quando o pipeline E2E mostrar quantas linhas reais quebram por cast implícito do PostgreSQL. Pode ser que o impacto em volume real seja desprezível e a story seja desnecessária.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/geracao/SqlGeradorUpdate.java:47-53'
+      - 'docs/stories/4.2.sql-gerador-update.md:188-189'
+
+waiver:
+  active: false
+
+ddd_clean_architecture:
+  status: PASS
+  notes: 'Posicionamento canônico: LinhaMapeada em mapeamento/ (VO de uma linha já mapeada por header), SqlEscape/ResultadoUpdate/SqlGeradorUpdate em geracao/ (utilitário, VO de retorno e gerador) — alinhado com Arquitetura §8 e com o padrão estabelecido por Coercionador/ResultadoCoercao na Story 4.1. SqlGeradorUpdate é função pura no pacote geracao/ — public final class sem CDI, sem dependências de framework (apenas JDK + br.com.arxcode.tematica.geo.{dominio,mapeamento}). Coercionador é injetado por parâmetro (não por campo final) — desacopla a fábrica do gerador da do coercionador, padrão consistente com Story 4.1 AC8. Records imutáveis (ResultadoUpdate, LinhaMapeada) com construtor canônico que valida invariantes (fail-fast) e cópias defensivas via LinkedHashMap+Collections.unmodifiableMap (espelha Classificacao.java:51-52). SRP: cada classe tem responsabilidade única (SqlEscape escapa aspas; ResultadoUpdate transporta resultado; LinhaMapeada agrupa dados de uma linha; SqlGeradorUpdate gera UPDATE). OCP: SqlGeradorUpdate é fechado para modificação no contrato (Mapeamento, Fluxo, Coercionador estáveis) e aberto para extensão via Story 4.3 (SqlGeradorUpsert paralelo). Interface Segregation: assinatura única gerar(linha, mapeamento, fluxo, coercionador) — sem overloads. Dependency Inversion: depende de Mapeamento e Fluxo (estáveis no domínio), não de fontes voláteis. Aderente a CONVENCOES.md (imports absolutos, lowercase package, PT para usuário, sem System.out, Logger não usado por ser função pura). Marker class para reflexão native-image NÃO necessária (nenhuma das classes novas atravessa fronteira Jackson; LinhaMapeada é construída em código pelo leitor da Story 4.5, não desserializada de JSON; ResultadoUpdate é VO de retorno interno).'
+
+dependent_stories_risk:
+  status: LOW
+  notes:
+    - story: '4.3 (SqlGeradorUpsert)'
+      risk: 'Baixo — pode reusar SqlEscape.aspas (refactor T1 já posiciona o utilitário); reusará LinhaMapeada.celulasDinamicas; padrão de função pura + Coercionador injetado por parâmetro está estabelecido. Acumulação de erros (AC9) será plenamente exercitada aqui com Tipo != TEXTO (DECIMAL/DATA/MULTIPLA_ESCOLHA). Sem riscos identificados.'
+    - story: '4.4 (LogErros)'
+      risk: 'Baixo — ResultadoUpdate.erros() entrega lista imutável de mensagens PT prontas para escrita. Atenção ao ISSUE-4.1-03 ainda em aberto (sanitização de control chars no escritor do .log) — se uma célula contiver \\n ou \\r, a mensagem PT virá multi-linha. Não bloqueante.'
+    - story: '4.5 (ImportarCommand)'
+      risk: 'Baixo — orquestrador instancia SqlGeradorUpdate uma vez (função pura, thread-safe) e compartilha entre iterações. Coercionador também (já validado na 4.1). Caso degenerado (Linha sem colunas fixas a atualizar) e falha de coerção interrompem processamento da linha (PRD FR-13) sem abortar pipeline. Verificar: contagem de linhas com erro deve ser exibida no resumo final. Premissa: Mapeamento real vem do mapping.json desserializado por Jackson (LinkedHashMap) — ordem determinística garantida. ISSUE-4.2-01 só seria relevante se algum dia o Mapeamento for construído programaticamente fora de Jackson.'
+    - story: '4.2.1 (tipagem completa de colunas fixas — futura)'
+      risk: 'Médio — depende de definição da fonte autoritativa do tipo (catálogo PostgreSQL via information_schema.columns vs. config manual no .json). Refatoração transversal em Mapeamento.colunasFixas para incluir Tipo afeta 9+ arquivos de produção, 5+ testes, fixture JSON. SqlGeradorUpdate precisará receber/derivar Tipo por coluna. ISSUE-4.2-04 documenta o débito.'
+    - story: '6.1 (native-image hardening)'
+      risk: 'Baixo — nenhuma das 4 classes novas usa reflexão; nenhuma é (de)serializada por Jackson. Não precisam entrar em reflect-config.json (não tocado nesta story, conforme planejado). LinkedHashMap + Collections.unmodifiableMap são suportados nativamente em GraalVM Java 21. Coercionador (regressão zero) já validado na 4.1.'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Hardening de Mapeamento: cópia defensiva em colunasFixas via LinkedHashMap+unmodifiableMap — fecha ISSUE-4.2-01.'
+      owner: '@dev (story de hardening entre 4.5 e 6.1)'
+    - action: 'Confirmar cobertura plena do ramo de acumulação de erros em SqlGeradorUpsert (Story 4.3) com Tipo != TEXTO — fecha ISSUE-4.2-02.'
+      owner: '@dev (via Story 4.3)'
+    - action: 'Refinar e priorizar Story 4.2.1 (tipagem completa de colunas fixas) após pipeline E2E mostrar volume real de quebras por cast implícito — fecha ISSUE-4.2-04.'
+      owner: '@po (após Stories 4.3/4.4/4.5 entregues)'
+    - action: 'Aplicar sanitização de control chars no escritor do .log em Story 4.4 — pendência herdada de ISSUE-4.1-03.'
+      owner: '@dev (via Story 4.4)'
+
+history:
+  - date: '2026-04-30T10:30:00-03:00'
+    gate: PASS
+    score: 91
+    note: 'Review único. AC1–AC14 verdes. 64 testes novos (SqlEscape 7 + ResultadoUpdate 9 + LinhaMapeada 14 + SqlGeradorUpdate 22 + Fluxo +2) cobrem todos os ACs com paramétricos abrangentes (@EnumSource(Fluxo.class) em 8 cenários CON-03 + 2 caso degenerado + 1 colunaChave). Cobertura JaCoCo confirmada por inspeção do relatório: SqlGeradorUpdate 90%/85% (≥80% NFR-09 com folga); SqlEscape 100% (sem branches); ResultadoUpdate 100%/100%; LinhaMapeada 100%/100%; Fluxo 100%; Coercionador 100%/100% (regressão zero pós-refactor T1 confirmada — exigência DoD atendida). Suíte total 285/285 verde em ./mvnw -B verify (31s, JVM mode). Decisões arquiteturais corretas: função pura sem CDI (alinhado a Coercionador da 4.1), Coercionador injetado por parâmetro (não campo), records imutáveis com cópias defensivas via LinkedHashMap+unmodifiableMap (espelha Classificacao.java:51-52), validação de args como IllegalArgumentException (não NPE) conforme contrato AC5, refactor T1 (SqlEscape extraído) fecha ISSUE-4.1-02 e elimina duplicação futura. Inspeção linha-por-linha de SqlGeradorUpdate.java confirma: única string SQL hard-coded na linha 145 começa com "UPDATE "; nenhum INSERT em qualquer caminho. AC10 implementado como teste programático bloqueante em 8 execuções (não comentário/documental). AC11 cobre vetores reais (O''Brien, 1''; DROP TABLE x; --). Tratamento adequado das 3 issues VAL do gate v1.1 (LinkedHashMap explícito em fixtures + Javadoc de premissa; teste documental de formato AC9; interpretação T5 Passo 4 com Javadoc). 4 issues registradas: 2 LOW (Mapeamento sem cópia defensiva — não bloqueante pois Jackson produz LinkedHashMap; cobertura plena de AC9 difere para 4.3), 2 INFO (heurística simplificada em contarStatements; débito Tipo.TEXTO já documentado em Story 4.2.1 futura). Nenhuma bloqueia o gate. Story Done; pronta para *close-story 4.2 pelo @po após PR mergeado em main.'
