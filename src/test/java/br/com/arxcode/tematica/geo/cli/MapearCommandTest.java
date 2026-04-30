@@ -3,6 +3,8 @@ package br.com.arxcode.tematica.geo.cli;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.QuarkusTestProfile;
+import io.quarkus.test.junit.TestProfile;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import org.dhatim.fastexcel.Workbook;
@@ -23,6 +25,7 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Map;
 
 import br.com.arxcode.tematica.geo.dominio.Fluxo;
 import br.com.arxcode.tematica.geo.dominio.Tipo;
@@ -42,10 +45,34 @@ import static org.junit.jupiter.api.Assertions.*;
  * profile distinto (falha de conexão DB e catálogo vazio) ficam em
  * {@link MapearCommandFalhaConexaoTest} e {@link MapearCommandCatalogoVazioTest}
  * para evitar reload de Quarkus dentro do mesmo arquivo.
+ *
+ * <p><b>Isolamento de configuração</b> — usa {@link DefaultsCodigoImovelProfile}
+ * para forçar {@code importacao.codigo-imovel.{territorial,predial}=MATRICULA}
+ * mesmo quando o desenvolvedor tem um {@code ./config/application.properties}
+ * local (gitignored, parte da distribuição) com overrides como
+ * {@code COD}/{@code INSCRICAO}. Sem este profile, as fixtures cujos cabeçalhos
+ * usam {@code MATRICULA} falham localmente embora o CI fique verde.
  */
 @QuarkusTest
 @QuarkusTestResource(value = PostgresResource.class, restrictToAnnotatedClass = true)
+@TestProfile(MapearCommandTest.DefaultsCodigoImovelProfile.class)
 class MapearCommandTest {
+
+    /**
+     * Profile dedicado: restaura os defaults da {@code CodigoImovelConfig}
+     * mesmo se o classpath/cwd injetar overrides via SmallRye (e.g.
+     * {@code ./config/application.properties} de dev).
+     */
+    public static class DefaultsCodigoImovelProfile implements QuarkusTestProfile {
+        @Override
+        public Map<String, String> getConfigOverrides() {
+            return Map.of(
+                "importacao.codigo-imovel.territorial", "MATRICULA",
+                "importacao.codigo-imovel.predial",     "MATRICULA"
+            );
+        }
+    }
+
 
     @Inject
     MapearCommand command;
