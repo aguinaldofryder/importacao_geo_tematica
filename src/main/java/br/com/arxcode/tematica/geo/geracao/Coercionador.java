@@ -92,7 +92,7 @@ public final class Coercionador {
 
     private static ResultadoCoercao coagirTexto(String valor) {
         String t = valor.trim();
-        return ResultadoCoercao.ok("'" + escaparAspas(t) + "'");
+        return ResultadoCoercao.ok("'" + SqlEscape.aspas(t) + "'");
     }
 
     private static ResultadoCoercao coagirDecimal(String valor) {
@@ -153,16 +153,6 @@ public final class Coercionador {
     }
 
     // ---------- Helpers ----------
-
-    /**
-     * Escapa aspas simples para literal SQL PostgreSQL com
-     * {@code standard_conforming_strings=on} (default desde 9.1):
-     * cada {@code '} vira {@code ''}. Backslash é literal — não precisa escape
-     * (não usamos prefixo {@code E''}).
-     */
-    private static String escaparAspas(String s) {
-        return s.replace("'", "''");
-    }
 
     private static String mensagemDataInvalida(String valor) {
         return "valor '" + valor + "' não é data válida (formatos aceitos: dd/MM/yyyy, yyyy-MM-dd)";
