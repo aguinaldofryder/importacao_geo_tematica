@@ -2,6 +2,7 @@ package br.com.arxcode.tematica.geo.cli;
 
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
@@ -44,6 +45,14 @@ class ValidarCommandTest {
     @Inject
     MapeamentoStore mapeamentoStore;
 
+    /**
+     * {@link ValidarCommand} é {@code @Dependent} — esta instância é reusada
+     * entre testes JUnit. Funciona porque picocli reaplica {@code defaultValue}
+     * em cada {@code execute()}. Se algum dia for adicionado um {@code @Option}
+     * sem {@code defaultValue}, considerar criar uma instância por teste via
+     * {@code factory.create(ValidarCommand.class)} para evitar herança de
+     * estado entre testes (revisão @qa Story 3.5).
+     */
     @Inject
     ValidarCommand command;
 
@@ -124,17 +133,21 @@ class ValidarCommandTest {
     // ------------------------------------------------------------------
     @Test
     void deveUsarMappingJsonNoDiretorioCorrenteQuandoOpcaoOmitida() {
-        // Sem --mapeamento, o defaultValue 'AC1' resolve para ./mapping.json.
-        // Em CI o arquivo nunca existe → exit 1 com mensagem de não-encontrado.
-        // Localmente, durante quarkus:dev, pode existir um ./mapping.json: nesse
-        // caso o comando segue para a etapa (2) e o exit ainda fica != 0 ou =0
-        // a depender do conteúdo. Verificamos apenas que o defaultValue está
-        // ativo (mensagem ou tentativa de leitura mencionando 'mapping.json').
+        // Determinístico: skipa se algum dev tem ./mapping.json no CWD do
+        // projeto (cenário plausível durante quarkus:dev). Sem o skip, o
+        // teste degradaria para uma disjunção fraca que poderia esconder
+        // regressão real do defaultValue (revisão @qa Story 3.5).
+        Path defaultPath = Path.of("./mapping.json").toAbsolutePath().normalize();
+        Assumptions.assumeFalse(Files.exists(defaultPath),
+                "Skipado: existe " + defaultPath + " no CWD; remova para rodar este teste.");
+
         Saida s = executar();
 
-        assertTrue(s.stderr().contains("mapping.json") || s.stdout().contains("mapping.json"),
-                "saída deve mencionar mapping.json — confirma defaultValue ativo. stderr="
-                        + s.stderr() + " stdout=" + s.stdout());
+        assertEquals(1, s.exit(), "exit deve ser 1 (arquivo default ausente). stderr=" + s.stderr());
+        assertTrue(s.stderr().contains("mapping.json"),
+                "stderr deve mencionar mapping.json — confirma que defaultValue está ativo. stderr=" + s.stderr());
+        assertTrue(s.stderr().contains("Arquivo de mapeamento não encontrado"),
+                "stderr deve usar a mensagem da etapa (1). stderr=" + s.stderr());
     }
 
     // ------------------------------------------------------------------

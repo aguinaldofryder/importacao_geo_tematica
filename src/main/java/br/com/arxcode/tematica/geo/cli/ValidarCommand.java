@@ -116,6 +116,9 @@ public class ValidarCommand implements Callable<Integer> {
             err.println("✗ Mapeamento inválido: " + e.getMessage());
             return 1;
         } catch (Exception e) {
+            // Defesa: contrato de MapeamentoStore.carregar nunca lança Exception
+            // não-MapeamentoIoException (Story 3.1 mapeia 6 categorias de falha
+            // de I/O e parsing). Ramo defensivo — não exercitado por testes.
             err.println("✗ Falha inesperada: " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
             LOG.error("Falha inesperada ao carregar mapping.json", e);
             return 1;
@@ -128,6 +131,10 @@ public class ValidarCommand implements Callable<Integer> {
         try {
             resultado = VALIDADOR.validar(m);
         } catch (Exception e) {
+            // Defesa: MapeamentoValidador.validar só lança ImportacaoException
+            // em validar(null) (Story 3.3) — caso impossível aqui pois 'm' já
+            // foi instanciado pelo MapeamentoStore. Ramo defensivo — não
+            // exercitado por testes.
             err.println("✗ Falha inesperada: " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
             LOG.error("Falha inesperada na validação semântica", e);
             return 1;
