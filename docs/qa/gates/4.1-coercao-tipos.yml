@@ -1,0 +1,151 @@
+schema: 1
+story: '4.1'
+story_title: 'Coerção de tipos (TEXTO, DECIMAL, DATA, MULTIPLA_ESCOLHA)'
+gate: PASS
+status_reason: 'Implementação exemplar dos 12 ACs em módulo crítico (NFR-09 nominal). 78 testes novos (6 ResultadoCoercao + 72 Coercionador) cobrindo todos os ACs com paramétricos abrangentes, organização @Nested por AC, smoke de segurança CON-03 dedicado e defesa em profundidade contra value=null no Map<String,Integer> (cenário real de AutoMapeador.java:213). Cobertura JaCoCo 100%/100% instructions/branches em ambas as classes — excede meta NFR-09 (≥80%) com folga máxima. Coerção é função pura, sem CDI, thread-safe (final class + record imutável), switch exhaustivo Java 21 sem default (compile-fail safety se Tipo expandir). DateTimeFormatter com ResolverStyle.STRICT + uuuu rejeita corretamente 31/02/2025 e 29/02/2025 (não-bissexto). Escape de aspas (CON-03) verificado em 3 cenários de injection. Aderente a CONVENCOES.md (imports absolutos, PT-only, sem System.out, sem logger pois função pura), AGENTS.md (geracao/ com responsabilidade única), Constitution (Quality First, Story-Driven). 221/221 testes do projeto verdes em ./mvnw -B verify (JVM mode). Decisão Approved → Done justificada. Pronta para *close-story 4.1.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2026-04-29T23:05:00-03:00'
+
+quality_score: 92
+expires: '2026-05-13T23:05:00-03:00'
+
+evidence:
+  tests_reviewed: 78
+  tests_total_pacote_geracao: 78
+  tests_total_baseline_story: 143
+  tests_total_apos_story: 221
+  coverage:
+    coercionador:
+      instructions: '100%'
+      branches: '100%'
+      lines: '50/50'
+      methods: '9/9'
+    resultadocoercao:
+      instructions: '100%'
+      branches: '100%'
+      lines: '8/8'
+      methods: '3/3'
+  risks_identified: 5
+  risks_resolved: 0
+  risks_deferred: 5
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    ac_gaps: []
+    given_when_then:
+      AC1: 'Given Coercionador instanciado, When coagir(valor, tipo, alternativas) é chamado para cada Tipo, Then retorna ResultadoCoercao apropriado — coberto por todos os testes do CoercionadorTest (assinatura validada implicitamente em 72 chamadas)'
+      AC2: 'Given construtor canônico de ResultadoCoercao, When ok=true sem literalSql ou ok=false sem erro, Then lança IllegalArgumentException — coberto por ResultadoCoercaoTest.construtor_okSemLiteral_lancaIllegalArgument e construtor_falhaSemErro_lancaIllegalArgument; fábricas testadas em ok_criaResultadoSucesso e falha_criaResultadoFalha'
+      AC3: 'Given valor null/vazio/whitespace-only, When coagir é chamado para qualquer Tipo, Then retorna ok("NULL") — coberto por NullEVazioViramNullLiteral (4 @ParameterizedTest com @EnumSource cobrindo as 4 constantes × 3 cenários + 3 variantes de whitespace)'
+      AC4: 'Given valor TEXTO com aspas/newline/backslash/whitespace, When coagir é chamado, Then trim + escape "/" → "/" + envolve em aspas — coberto por Texto (4 testes paramétricos + 4 dedicados incluindo aspaSimples_escapaDuplicandoAspa, multiplasAspasSimples, newlineLiteral_preservadaSemEscape, backslash_naoEscapado)'
+      AC5: 'Given valor DECIMAL pt-BR/ISO/inválido, When coagir é chamado, Then normaliza via BigDecimal.toPlainString ou retorna falha PT — coberto por Decimal (8 válidos + 11 inválidos paramétricos cobrindo notação científica, letras, espaços, sinal positivo, múltiplas vírgulas, ponto trailing, vírgula trailing, duplo sinal)'
+      AC6: 'Given valor DATA pt-BR/ISO/inválido, When coagir é chamado, Then parse STRICT + emite DATE "yyyy-MM-dd" ou falha PT — coberto por Data (5 válidos incluindo bissexto 29/02/2024 + 9 inválidos incluindo 31/02 STRICT, 29/02/2025 não-bissexto, ano 2 dígitos, separadores trocados)'
+      AC7: 'Given valor MULTIPLA_ESCOLHA, When mapa válido/null/vazio/com value-null/com chave-null, Then resolve case-insensitive+trim ou falha PT específica — coberto por MultiplaEscolha (8 testes incluindo matchExato, matchCaseInsensitiveETrim com 5 variantes, semMatch, mapaNulOuVazio @NullAndEmptySource, valueNulo_retornaFalhaMapeamentoCorrompido, chaveNulaNoMapa_naoQuebra, chaveDoMapaComEspacos_normalizadaPorTrim)'
+      AC8: 'Given Coercionador instanciado uma vez, When invocado múltiplas vezes com tipos diferentes e repetidos, Then resultados idênticos sem estado residual — coberto por coercionador_eReusavel; reforçado pela ausência sintática de campos não-final (final class + apenas constantes static final)'
+      AC9: 'Given input malicioso, When coagir TEXTO/MULTIPLA_ESCOLHA, Then literal SQL inerte ou falha — coberto por SegurancaCon03 (3 testes: apostrofoEmTexto, tentativaInjectionEmTexto_neutralizada com asserção adicional de aspas balanceadas, tentativaInjectionEmMultiplaEscolha_naoViraLiteralNumerico)'
+      AC10: 'Verificado por inspeção do relatório JaCoCo gerado em ./mvnw -B verify: 100% instructions/branches/lines/methods nas 2 classes — excede 80%'
+      AC11: 'Inspeção das 8 mensagens de erro hardcoded no código: todas em PT (decimal/data/alternativa/mapeamento). Sem strings em inglês fora de Javadoc. Coercionador não usa Logger (função pura)'
+      AC12: 'mvn -B verify executou em 32s no JVM mode com 221/221 testes verdes; quarkus-build OK; nenhuma dependência nova no pom.xml'
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Foco crítico desta story (CON-03 — sem PreparedStatement). TEXTO escapa "/" → "/" para PostgreSQL standard_conforming_strings=on (default ≥9.1) — testado com input emblemático "O''Brien" e tentativa explícita de injection "/; DROP TABLE x; --" produzindo string inerte com asserção adicional de aspas balanceadas. MULTIPLA_ESCOLHA emite literal numérico apenas via String.valueOf(Integer) após match no catálogo — impossível injetar (testado com "1; DROP" caindo em "alternativa não mapeada"). DATA emite "DATE ''yyyy-MM-dd''" após parse STRICT — impossível injetar. DECIMAL emite BigDecimal.toPlainString após validação por regex restritiva — impossível injetar. Vetores cobertos. Resíduo: comportamento sob standard_conforming_strings=off (não-default) requer prefixo E para escapar backslash; assumido on conforme Dev Notes (registrado como risco arquitetural na própria story).'
+  performance:
+    status: PASS
+    notes: 'Função pura síncrona. Constantes pré-compiladas (DECIMAL_CANONICO Pattern, DATA_PT_BR/DATA_ISO DateTimeFormatter) evitam recompilação por chamada. BigDecimal cria instância por valor decimal — alocação O(1), aceitável para volume IPTU (centenas de milhares de células). Iteração linear O(n) sobre alternativas (n ≤ ~10 tipicamente para enum-like) — aceitável; HashMap.get não usado porque normalização case-insensitive+trim aplica-se à chave do mapa também. Sem caching mutável (alinhado a AC8 thread-safety). Não há perf hot-path identificado para Story 4.5 (importar) — Stories 4.2/4.3 chamam por célula × linha, mas overhead de coerção é desprezível vs. I/O do .sql. Sem riscos.'
+  reliability:
+    status: PASS
+    notes: 'Tratamento de erro como dado (ResultadoCoercao.falha) em vez de exceção evita propagação custosa por linha — alinhado a PRD FR-13. Switch exhaustivo Java 21 sem default garante que adição futura ao enum Tipo causa erro de compilação (fail-fast). DateTimeFormatter STRICT + uuuu rejeita corretamente datas inexistentes (31/02, 29/02 não-bissexto) — diferencial técnico crítico documentado em Dev Notes. Defesa em profundidade contra Map<String,Integer> com value=null cobre cenário real de AutoMapeador.java:213 com mensagem distinta de "não mapeada", facilitando diagnóstico no .log da Story 4.4. Construtor canônico do record valida invariantes (ok=true exige literalSql; ok=false exige erro). Função pura sem efeitos colaterais — reproducibilidade absoluta. Imutabilidade dos records garante segurança em paralelismo futuro caso Stories 4.2/4.3 paralelizem geração.'
+  maintainability:
+    status: PASS
+    notes: 'Javadoc PT extensivo na classe principal e no record documenta: contratos, decisões arquiteturais (literal vs PreparedStatement, função pura sem CDI, locale fixo, política de erro como dado), referências às Stories que consomem (4.2/4.3) e que loga (4.4), invariantes do construtor canônico do record. Branches por tipo separados em métodos privados nomeados (coagirTexto/Decimal/Data/MultiplaEscolha) — escopo cognitivo isolado. Constantes nomeadas com semântica explícita (NULL_LITERAL, DECIMAL_CANONICO, DATA_PT_BR, DATA_ISO). Helpers (escaparAspas, mensagemDataInvalida) com Javadoc. Testes organizados em @Nested por AC com nomes descritivos snake_case_underscores em pt — facilita navegação. Sem AssertJ (alinhado ao padrão Story 3.1) mas helpers assertOk/assertFalha eliminam boilerplate. Sem dívida técnica detectada além das LOW issues registradas.'
+
+top_issues:
+  - id: ISSUE-4.1-01
+    severity: low
+    status: OPEN
+    title: 'Typo no AC9 da story diverge do esperado real produzido pela implementação correta'
+    description: 'AC9 prescreve literalmente: "(b) `\"; DROP TABLE x; --\"` produz `\"\";\" DROP TABLE x; --\"` (texto inerte)". O segundo literal contém uma sequência apóstrofo-vírgula-apóstrofo que não corresponde ao output real do escape correto. A implementação produz `"";" DROP TABLE x; --"` (apóstrofo de abertura + 2 apóstrofos escapando o `'` original + ponto-e-vírgula + restante + apóstrofo de fechamento), e o teste tentativaInjectionEmTexto_neutralizada assertou exatamente esse valor — que está correto. O AC tem typo de documentação, não a implementação. Fora do escopo desta story modificar o AC (story Done), mas registrar para evitar confusão em futura auditoria.'
+    suggested_owner: po
+    resolution: 'Em uma futura revisão de stories ou changelog, corrigir a string esperada no AC9 (b) para refletir o output correto do escape PostgreSQL. Alternativamente, anexar nota no Change Log indicando que o teste é a fonte de verdade.'
+    refs:
+      - 'docs/stories/4.1.coercao-tipos.md:31'
+      - 'src/test/java/br/com/arxcode/tematica/geo/geracao/CoercionadorTest.java:251-262'
+
+  - id: ISSUE-4.1-02
+    severity: low
+    status: OPEN
+    title: 'escaparAspas privada — Stories 4.2/4.3 precisarão do mesmo escape ao montar cláusulas WHERE'
+    description: 'O método private static String escaparAspas(String s) (linha 163) é o coração da defesa CON-03. Quando SqlGeradorUpdate (Story 4.2) montar `WHERE col = ''<idkey escapado>''` ou SqlGeradorUpsert (4.3) montar `INSERT ... VALUES (''<referencia escapada>'', ...)`, o mesmo escape será necessário. Hoje seria duplicado em outra classe. Já registrado pelo @dev nas Completion Notes como "deferido". Risco de regressão: dois pontos de escape divergirem no futuro (ex.: alguém adicionar prefixo E em uma cópia mas não na outra). Sem ação imediata pois Stories 4.2/4.3 ainda não existem — decisão correta de não criar abstração prematura.'
+    suggested_owner: dev
+    resolution: 'Quando Story 4.2 (SqlGeradorUpdate) for implementada: extrair escaparAspas para classe utilitária pública (ex.: SqlEscape.literalTexto(String)) compartilhada por Coercionador e SqlGerador*. Atualizar testes em conformidade. Pode ser feito como refactor da própria 4.2.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/geracao/Coercionador.java:163-165'
+
+  - id: ISSUE-4.1-03
+    severity: low
+    status: OPEN
+    title: 'Mensagens de falha interpolam valor cru — input com newline/CR pode quebrar legibilidade do .log'
+    description: 'As 4 mensagens de falha (decimal/data/alternativa não mapeada/mapeamento corrompido) interpolam o input cru via `"valor ''" + valor + "''..."`. Se uma célula do Excel contiver \\n, \\r ou caracteres de controle, a mensagem PT virá multi-linha no .log da Story 4.4 — afetando parsing de logs por linha (cenário improvável em IPTU mas possível em campos TEXTO mal preenchidos). Não é vulnerabilidade. Trade-off: sanitizar ofusca o problema real ao operador. Decisão razoável manter como está, mas registrar para Story 4.4 (LogErros) considerar formatador de mensagem que escape control chars na escrita do .log.'
+    suggested_owner: dev
+    resolution: 'Story 4.4 (LogErros) deve aplicar sanitização de control chars (ex.: replaceAll("[\\r\\n\\t]", " ")) no escritor do .log, não no Coercionador (que mantém mensagem PT pura para outros consumidores potenciais). Adicionar nota cruzada na Story 4.4 quando refinada.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/geracao/Coercionador.java:109,124,130,147,152,167-169'
+
+  - id: ISSUE-4.1-04
+    severity: info
+    status: INFO
+    title: 'Conjuntos de inválidos em DECIMAL/DATA não cobrem variantes de whitespace interno e negativo sem inteiro'
+    description: 'Casos não exercitados (todos comportam-se corretamente — verificado por raciocínio sobre regex/formatter, não bug): (a) "-,5" em DECIMAL — normaliza para "-.5" → regex falha → falha PT (correto); (b) " 01/01/2025 " com espaços externos em DATA — trim já aplicado em coagirData, ok (já garantido pelo guard de AC3 + trim adicional dentro do método); (c) "01 /01/2025" com espaço interno em DATA — DateTimeParseException → falha PT (correto). Cobertura de linhas/branches já é 100%, então adicionar não muda métrica — apenas amplia documentação executável. Risco mínimo.'
+    suggested_owner: dev
+    resolution: 'Opcional. Adicionar 3 casos ao @ValueSource de Decimal e Data inválidos quando houver outra alteração na classe. Não justifica iteração isolada.'
+    refs:
+      - 'src/test/java/br/com/arxcode/tematica/geo/geracao/CoercionadorTest.java:124-141,161-176'
+
+  - id: ISSUE-4.1-05
+    severity: info
+    status: INFO
+    title: 'Iteração O(n) em MULTIPLA_ESCOLHA é ótima hoje mas merece revisão se enum tiver dezenas de alternativas'
+    description: 'O loop em coagirMultiplaEscolha (linha 139) é linear sobre alternativas.entrySet() porque a normalização case-insensitive + trim aplica-se também à chave do mapa (HashMap.get(chave) seria case-sensitive). Para n ≤ 10 (típico em campos enum-like de IPTU: Sim/Não, faixas de uso, categorias), isso é desprezível. Se algum campo crescer para n ≥ 50, vale considerar pre-computar Map<String, Integer> com chaves já normalizadas no AutoMapeador (Story 3.2) ou no MapeamentoStore (3.1), permitindo HashMap.get O(1) aqui. Sem ação agora.'
+    suggested_owner: dev
+    resolution: 'Sem ação. Monitorar métricas de runtime quando Story 4.5 (importar) gerar volume real. Se aparecer hotspot, mover normalização para o produtor do Map (3.1/3.2) e simplificar Coercionador para HashMap.get.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/geracao/Coercionador.java:139-151'
+
+waiver:
+  active: false
+
+ddd_clean_architecture:
+  status: PASS
+  notes: 'Coercionador é função pura no pacote geracao/ — alinhado com Arquitetura §8 (camada de geração separada de excel/, mapeamento/, dominio/). Sem CDI, sem dependências de framework (apenas JDK + br.com.arxcode.tematica.geo.dominio.Tipo). ResultadoCoercao é Value Object imutável (record) sem comportamento — apenas dados de retorno. Construtor canônico valida invariantes (fail-fast). Sem regra de negócio do IPTU vazando aqui — apenas conversão sintática. Single Responsibility: cada branch do switch tem um método privado dedicado. Open/Closed: switch exhaustivo força revisitar esta classe ao adicionar novo Tipo (decisão consciente — coerção é centro nervoso da geração SQL, não deve aceitar extensão silenciosa). Interface Segregation: assinatura única coagir(valor, tipo, alternativas) — alternativas pode ser null para tipos != MULTIPLA_ESCOLHA, decisão pragmática vs. múltiplos métodos overloaded. Aderente a CONVENCOES.md (imports absolutos, lowercase package, PT para usuário, sem System.out, Logger não usado por ser função pura). Marker class para reflexão native-image NÃO necessária (Coercionador não atravessa fronteira Jackson; record ResultadoCoercao tampouco — não é (de)serializado).'
+
+dependent_stories_risk:
+  status: LOW
+  notes:
+    - story: '4.2 (SqlGeradorUpdate)'
+      risk: 'Baixo — consumirá Coercionador.coagir(valor, tipo, alternativas) por célula da planilha; assinatura estável. Atenção ao ISSUE-4.1-02: extrair escaparAspas para classe utilitária compartilhada (SqlEscape) ao montar WHERE. Política de erro (ResultadoCoercao.falha) já está pronta para alimentar 4.4.'
+    - story: '4.3 (SqlGeradorUpsert)'
+      risk: 'Baixo — mesmo contrato que 4.2. Para INSERT em respostaterreno/respostasegmento, valor da resposta + idcampo + idalternativa (em multipla escolha) já saem prontos para concatenação. Sem riscos identificados.'
+    - story: '4.4 (LogErros)'
+      risk: 'Baixo-Médio — atenção ao ISSUE-4.1-03: aplicar sanitização de control chars (\\r\\n\\t) ao escrever no .log para evitar quebra de linha em mensagens de erro com valor cru contendo newline. Coercionador entrega mensagem PT pura (intencional); transformação visual é responsabilidade do escritor do log.'
+    - story: '4.5 (ImportarCommand)'
+      risk: 'Baixo — orquestrador instancia Coercionador uma vez (AC8 thread-safe) e compartilha entre iterações. Falhas de coerção interrompem processamento da linha (PRD FR-13) sem abortar pipeline. Verificar: contagem de linhas com erro deve ser exibida no resumo final.'
+    - story: '6.1 (native-image hardening)'
+      risk: 'Baixo — Coercionador não usa reflexão (switch exhaustivo, regex pré-compilado, DateTimeFormatter constante). ResultadoCoercao não atravessa fronteira Jackson. Não precisa entrar em reflect-config.json. Confirmar no smoke nativo da 6.3 que coerção funciona em binário (especialmente DATA com STRICT — comportamento de DateTimeFormatter em GraalVM é estável em Java 21).'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Refatorar escaparAspas para SqlEscape.literalTexto público quando Story 4.2 entrar (ISSUE-4.1-02).'
+      owner: '@dev (via Story 4.2)'
+    - action: 'Aplicar sanitização de control chars no escritor do .log em Story 4.4 (ISSUE-4.1-03).'
+      owner: '@dev (via Story 4.4)'
+    - action: 'Corrigir typo do AC9 (b) ou anexar nota no Change Log indicando que teste é fonte de verdade (ISSUE-4.1-01).'
+      owner: '@po'
+    - action: 'Revisar custo da iteração O(n) em MULTIPLA_ESCOLHA quando Story 4.5 produzir volume real (ISSUE-4.1-05).'
+      owner: '@dev'
+
+history:
+  - date: '2026-04-29T23:05:00-03:00'
+    gate: PASS
+    score: 92
+    note: 'Review único. AC1–AC12 verdes. 78 testes novos (6 + 72) cobrem todos os ACs com paramétricos abrangentes; cobertura JaCoCo 100% instructions/branches em ambas as classes (Coercionador e ResultadoCoercao) — excede NFR-09 (≥80%) ao máximo. Suíte total 221/221 verde em ./mvnw -B verify (32s, JVM mode). Decisões arquiteturais corretas: função pura sem CDI, switch exhaustivo Java 21 (compile-fail safety), DateTimeFormatter STRICT + uuuu (rejeita 31/02 e 29/02 não-bissexto), defesa em profundidade contra Map<String,Integer> com value=null, escape "/" → "/" para PostgreSQL standard_conforming_strings=on. Smoke de segurança CON-03 dedicado em 3 cenários (apóstrofo, injection em TEXTO, injection em MULTIPLA_ESCOLHA) — vetores cobertos. Único desvio do plano (CsvSource quoteCharacter) documentado em Completion Notes — ajuste de teste, não de produção. 5 issues registradas: 3 LOW (typo AC9, escape duplicação futura, control chars em log), 2 INFO (cobertura ampliável de DECIMAL/DATA inválidos, perf O(n) em MULTIPLA_ESCOLHA). Nenhuma bloqueia o gate. Story Done; pronta para *close-story 4.1 pelo @po.'
