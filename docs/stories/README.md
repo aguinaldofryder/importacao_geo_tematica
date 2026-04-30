@@ -39,10 +39,10 @@
 |---|---|---|---:|---|
 | [4.1](./4.1.coercao-tipos.md) ✅ | Coerção de tipos (TEXTO/DECIMAL/DATA/MULTIPLA_ESCOLHA) | @dev | 1 h | 2.2 |
 | [4.2](./4.2.sql-gerador-update.md) ✅ | SqlGerador UPDATE (tabela principal) | @dev | 1 h | 4.1 |
-| [4.2.1](./4.2.1.tipagem-completa-colunas-fixas.md) 📋 | Tipagem completa das colunas fixas (DECIMAL/DATA) — Backlog, refino pós-4.5 | @dev | 3–5 h | 4.2, 4.3, 4.4, 4.5 |
 | [4.3](./4.3.sql-gerador-upsert.md) | SqlGerador UPSERT (tabela de respostas) | @dev | 1 h | 4.1 |
 | [4.4](./4.4.log-erros-estruturado.md) | LogErros estruturado | @dev | 0,3 h | 1.2 |
 | [4.5](./4.5.comando-importar.md) | Comando `importar` | @dev | 1,5 h | 3.3, 3.4, 4.1, 4.2, 4.3, 4.4 |
+| [4.6](./4.6.tipagem-completa-colunas-fixas.md) 📋 | Tipagem completa das colunas fixas (DECIMAL/DATA) — Backlog, refino pós-4.5 | @dev | 3–5 h | 4.2, 4.3, 4.4, 4.5 |
 
 ## Épico 5 — Resumo pós-importação
 
