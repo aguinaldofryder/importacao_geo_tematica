@@ -83,13 +83,19 @@ top_issues:
 
   - id: ISSUE-4.1-03
     severity: low
-    status: OPEN
+    status: RESOLVED
+    resolved_in: '4.4'
+    resolved_at: '2026-05-03T15:42:00-03:00'
+    resolved_by: 'Quinn (Test Architect — Sage @qa) na review da Story 4.4'
     title: 'Mensagens de falha interpolam valor cru — input com newline/CR pode quebrar legibilidade do .log'
     description: 'As 4 mensagens de falha (decimal/data/alternativa não mapeada/mapeamento corrompido) interpolam o input cru via `"valor ''" + valor + "''..."`. Se uma célula do Excel contiver \\n, \\r ou caracteres de controle, a mensagem PT virá multi-linha no .log da Story 4.4 — afetando parsing de logs por linha (cenário improvável em IPTU mas possível em campos TEXTO mal preenchidos). Não é vulnerabilidade. Trade-off: sanitizar ofusca o problema real ao operador. Decisão razoável manter como está, mas registrar para Story 4.4 (LogErros) considerar formatador de mensagem que escape control chars na escrita do .log.'
     suggested_owner: dev
-    resolution: 'Story 4.4 (LogErros) deve aplicar sanitização de control chars (ex.: replaceAll("[\\r\\n\\t]", " ")) no escritor do .log, não no Coercionador (que mantém mensagem PT pura para outros consumidores potenciais). Adicionar nota cruzada na Story 4.4 quando refinada.'
+    resolution: 'FECHADA na Story 4.4 conforme planejado. Helper privado LogErros.sanitizar(String) (LogErros.java:288-335) aplica escape char-a-char em todos os campos de input externo antes da renderização (codigoImovel, motivo, coluna, valorOriginal, mensagens de erros agregados, nomePlanilha): \\n/\\r/\\t → \\\\n/\\\\r/\\\\t literais; demais control chars < 0x20 → \\\\uXXXX em hex maiúsculo de 4 dígitos. Coercionador permanece intacto (mensagem PT pura preservada para outros consumidores potenciais), conforme decisão original. Verificação ponta-a-ponta em SmokeLogInjection.vetorMaliciosoNaoQuebraEstrutura (LogErrosTest.java:478-501): vetor com \\n/\\r + tentativa de forjar [linha 999] codigo=HACK produz exatamente 13 newlines estruturais (4 cabeçalho + 3 seção coerção + 6 sumário) e nenhuma entrada injetada. Cobertura JaCoCo do helper sanitizar: 100%/100% (45/45 instruções, 13/13 branches) com 12 testes diretos via sanitizarParaTeste package-private. Ver detalhes completos em docs/qa/gates/4.4-log-erros-estruturado.yml#ISSUE-4.1-03.'
     refs:
       - 'src/main/java/br/com/arxcode/tematica/geo/geracao/Coercionador.java:109,124,130,147,152,167-169'
+      - 'src/main/java/br/com/arxcode/tematica/geo/geracao/LogErros.java:288-335 (sanitização — fechamento)'
+      - 'src/test/java/br/com/arxcode/tematica/geo/geracao/LogErrosTest.java:95-161,475-502 (cobertura)'
+      - 'docs/qa/gates/4.4-log-erros-estruturado.yml (cross-link de fechamento)'
 
   - id: ISSUE-4.1-04
     severity: info
