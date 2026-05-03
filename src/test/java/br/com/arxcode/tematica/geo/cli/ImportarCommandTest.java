@@ -215,7 +215,7 @@ class ImportarCommandTest {
                 "--mapeamento", mappingJson.toString());
 
         assertEquals(0, r.exit(), "Exit code deve ser 0. stderr=" + r.stderr());
-        assertTrue(r.stdout().contains("✓ Artefatos gerados"), "stdout deve confirmar geração. stdout=" + r.stdout());
+        assertTrue(r.stdout().contains("RESUMO DA IMPORTAÇÃO"), "stdout deve exibir o bloco de resumo. stdout=" + r.stdout());
 
         List<Path> sqls = listarArtefatos(".sql");
         assertFalse(sqls.isEmpty(), "Deve haver pelo menos um .sql");
