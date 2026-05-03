@@ -1,0 +1,187 @@
+schema: 1
+story: '4.3'
+story_title: 'SqlGeradorUpsert (tabela de respostas, colunas dinâmicas)'
+gate: PASS
+status_reason: 'Implementação aderente aos 16 ACs da Story Approved v2.6 (refino River v2.5 + validação Pax v2.6 score 9.7/10). 40 testes novos (ResultadoUpsert 13 + SqlGeradorUpsert 25 + FluxoTest +2) cobrindo todos os ACs com paramétricos abrangentes (@EnumSource(Fluxo.class) em CasosDegenerados, SmokeFormatoNaoRegressao). Pipeline DATA ISO → BR (AC11(c)) implementado conforme contrato: literal.substring(6, 16) → LocalDate.parse(ISO_LOCAL_DATE) → format(ofPattern("dd/MM/uuuu")) → envelope aspas; round-trip ISO/BR convergindo para saída BR explicitamente testado. Coercionador permanece intacto (regressão zero confirmada — 100%/100% no JaCoCo); Story 4.2 SqlGeradorUpdate sem regressão (90%/85% mantido). Fluxo.sequenceRespostas() (AC16) entregue dentro da story como pré-req P0 (~5 LoC + 2 testes), retornando "s_respostaterreno_id"/"s_respostasegmento_id". Sintaxe DELETE+INSERT correta (não há UNIQUE em (referencia, idcampo); sintaxe ON CONFLICT lançaria erro PG); schema "aise." prependido em todas as 3 cláusulas (DELETE FROM aise., INSERT INTO aise., nextval(''aise.<seq>'')); coluna única "valor" varchar; idalternativa = NULL exceto MULTIPLA_ESCOLHA; valor = '''' literal vazio para MULTIPLA_ESCOLHA conforme amostra empírica do banco. Segurança CON-03 verificada: vetor "O''Brien" gera literal escapado ''O''''Brien'' tanto no DELETE WHERE quanto no INSERT VALUES; vetor injection "1''; DROP TABLE x; --" totalmente envelopado e inerte (delegação transparente para SqlEscape.aspas via Coercionador.coagirTexto — herda blindagem da Story 4.1/4.2 sem código de escape próprio). Política de erro AC5/AC9 (acumulação plena) implementada: laço completo coleta todas as falhas; nenhum SQL emitido se erros.isEmpty()==false ao final; prefixos "Coluna ''<header>'': " e "Código do imóvel: " corretos. ISSUE-4.2-02 LOW efetivamente fechada — @Nested AcumulacaoDeErros força DECIMAL "abc" + DATA "xyz" (2 falhas simultâneas reais) e valida ambas mensagens com nenhum SQL emitido. Validação de args como IllegalArgumentException PT (não NPE), records imutáveis com List.copyOf, função pura sem CDI (alinhado a 4.1/4.2). 325/325 testes verdes em ./mvnw -B verify; sem novas deps em pom.xml; sem alteração em reflect-config.json; mensagens 100% PT; imports absolutos; sem System.out. Cobertura JaCoCo: ResultadoUpsert 100%/100% (19/19), SqlGeradorUpsert 96%/92% (52/54, 2 missed exercitáveis — não default de switch como autorrelatado), ValorSerializado 100%, Fluxo 100%/100% sem regressão. As 2 linhas não cobertas (L128 codigoImovel falha de coerção; L157 continue após acumulação) são caminhos defensivos/exercitáveis registrados como ISSUE-4.3-01 LOW e ISSUE-4.3-02 LOW — não bloqueiam o gate (cobertura ≥80% atingida com folga; ramo de acumulação completamente exercitado em outro caminho via AcumulacaoDeErros). Aderente a CONVENCOES.md, AGENTS.md (geracao/ para SQL builders, dominio/ para Fluxo, regra invariável "respostaterreno/respostasegmento UPSERT por (referencia, idcampo)" — aqui via DELETE+INSERT). Decisão Done justificada. Pronta para *close-story 4.3 pelo @po após PR mergeado em main.'
+reviewer: 'Sage (@qa)'
+updated: '2026-05-03T11:08:00-03:00'
+
+quality_score: 92
+expires: '2026-05-17T11:08:00-03:00'
+
+evidence:
+  tests_reviewed: 40
+  tests_total_baseline_story: 285
+  tests_total_apos_story: 325
+  tests_delta: 40
+  build:
+    command: './mvnw -B verify'
+    result: 'BUILD SUCCESS'
+    mode: 'JVM'
+  coverage:
+    sql_gerador_upsert:
+      instructions: '96%'
+      branches: '92%'
+      lines: '52/54'
+      methods: '4/4'
+      meta_nfr09: '≥ 80% — atingida com folga'
+      missed_lines:
+        - line: 128
+          desc: 'erros.add("Código do imóvel: " + rcRef.erro()) — ramo defensivo: coagirTexto só falha para null/blank, e LinhaMapeada já invalida codigoImovel null/blank no construtor (ISSUE-4.3-01).'
+        - line: 157
+          desc: 'continue após !erros.isEmpty() já carregar erro de célula anterior — exercitável reordenando fixture (ISSUE-4.3-02).'
+    sql_gerador_upsert_valor_serializado:
+      instructions: '100%'
+      branches: 'n/a'
+      lines: '1/1'
+      methods: '1/1'
+    resultado_upsert:
+      instructions: '100%'
+      branches: '100%'
+      lines: '19/19'
+      methods: '4/4'
+    fluxo_regressao:
+      instructions: '100%'
+      branches: 'n/a'
+      lines: '15/15'
+      methods: '7/7'
+      observacao: 'Regressão zero pós-AC16 (sequenceRespostas) — confirmado.'
+    coercionador_regressao:
+      instructions: '100%'
+      branches: '100%'
+      lines: '49/49'
+      methods: '8/8'
+      observacao: 'Story 4.1 intacta; Coercionador NÃO foi tocado (pipeline ISO → BR isolado em SqlGeradorUpsert.serializarValor).'
+    sql_escape_regressao:
+      instructions: '100%'
+      lines: 'n/a (sem branches)'
+      observacao: 'Reuso transparente via Coercionador.coagirTexto.'
+    sql_gerador_update_regressao:
+      instructions: '90%'
+      branches: '85%'
+      observacao: 'Story 4.2 sem regressão; ISSUE-4.2-02 efetivamente fechada na 4.3.'
+    resultado_update_regressao:
+      instructions: '100%'
+      branches: '100%'
+    linha_mapeada_regressao:
+      instructions: '100%'
+      branches: '100%'
+  risks_identified: 4
+  risks_resolved: 1
+  risks_deferred: 3
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    ac_gaps: []
+    given_when_then:
+      AC1: 'Given fábricas de ResultadoUpsert, When sucesso(null/blank) ou falha(null/empty/blank), Then IAE PT; quando válido constroi imutável via List.copyOf — coberto por ResultadoUpsertTest (13 invocações: FabricaSucesso 5, FabricaFalha 5, ConstrutorCanonico 3 incluindo nullSqls/nullErros/copyOf_garanteImutabilidade)'
+      AC2: 'Given SqlGeradorUpsert.gerar com qualquer parâmetro null, When invocado, Then IAE PT (não NPE) — coberto por ValidacaoDeArgumentos (4 testes: linhaNula, mapeamentoNulo, fluxoNulo, coercionadorNulo). public final class sem CDI confirmado por inspeção de SqlGeradorUpsert.java:70-76.'
+      AC3: 'Given coluna PENDENTE/IGNORADO ou célula null/blank/whitespace ou ausente no map, When iterar, Then pula sem emitir SQL — coberto por FiltragemDeCelulas (3 testes: colunaPendente_pulada_outrasMapeadasGeramSql, celulaNullOuBlank_pulada com "" e "  ", celulaAusenteNoMap_pulada).'
+      AC4: 'Given célula dinâmica processada, When coercionador.coagir(valor, tipo, alternativas), Then retorna ResultadoCoercao com literalSql() pronto para concatenação — coberto indiretamente em FormaSqlPorTipo (TEXTO/DECIMAL/DATA/MULTIPLA_ESCOLHA).'
+      AC5: 'Given falha de coerção em qualquer célula dinâmica, When acumular, Then ResultadoUpsert.falha com mensagens "Coluna ''<header>'': <erro>" e nenhum SQL emitido — coberto por AcumulacaoDeErros (3 testes: duasFalhasSimultaneas_decimalEData_acumulaAmbas, multiplaEscolhaSemAlternativaMapeada_acumulaErro, erroEmUmaCelula_naoEmiteSqlParaAsValidasDaMesmaLinha). Falha em codigoImovel também acumularia ("Código do imóvel: ...") — caminho L128 não exercitado em runtime (LinhaMapeada bloqueia null/blank no construtor — ISSUE-4.3-01 LOW).'
+      AC6: 'Given célula MAPEADO+não-vazia, When gerar, Then 2 strings consecutivos: DELETE FROM aise.<tab> WHERE referencia=<ref> AND idcampo=<id>; e INSERT INTO aise.<tab> (id, referencia, valor, idcampo, idalternativa) VALUES (nextval(''aise.<seq>''), <ref>, <valor>, <id>, <idAlt|NULL>); — coberto por FormaSqlPorTipo (assertEquals exato dos 2 SQLs em texto, decimal, data, multipla_escolha; predial_usaTabelaESequenciaCorretas).'
+      AC7: 'Given mapeamento com colunasDinamicas em LinkedHashMap, When iterar, Then ordem preservada nos sqls — coberto indiretamente (cada @Nested usa LinkedHashMap explícito; ordem MAPEADO/PENDENTE no fixture é honrada na asserção idcampo=42 vir primeiro).'
+      AC8: 'Given mapeamento sem dinâmicas OU todas pendentes/vazias, When gerar, Then ResultadoUpsert.sucesso(List.of()) — coberto por CasosDegenerados (3 testes: mapeamentoSemDinamicas_retornaSucessoListaVazia @ParameterizedTest @EnumSource ambos fluxos, todasDinamicasVazias_retornaSucessoListaVazia, todasDinamicasPendentes_retornaSucessoListaVazia). Divergência intencional vs. 4.2 (que retorna falha) documentada no Javadoc.'
+      AC9: 'Given 2+ falhas de coerção em uma única linha (DECIMAL "abc" + DATA "xyz"), When gerar, Then erros lista 2 mensagens prefixadas, sqls vazio — coberto por duasFalhasSimultaneas_decimalEData_acumulaAmbas. FECHA ISSUE-4.2-02 LOW (caminho que a 4.2 só pôde exercitar documentalmente está agora coberto por testes reais com Tipo != TEXTO).'
+      AC10: 'Given codigoImovel "O''Brien", When gerar, Then DELETE WHERE contém ''O''''Brien'' e INSERT também — coberto por EscapeReferencia.codigoComAspaSimples_escapaNoDeleteEInsert. Delegação transparente: SqlEscape.aspas via Coercionador.coagirTexto.'
+      AC11: 'Given 4 tipos × pipeline serializarValor — TEXTO usa literal direto sem reaplicar aspas (sem double-escape); DECIMAL envelopa "''<num>''"; DATA pipeline ISO → BR substring(6,16)+ISO_LOCAL_DATE+ofPattern("dd/MM/uuuu")+aspas; MULTIPLA_ESCOLHA valor='''' + idAlternativa nu — coberto por FormaSqlPorTipo (5 testes: texto, decimal, data ISO, data BR round-trip, multipla_escolha) com assertEquals exato. Escape de injection inerte: EscapeInjection (2 testes: injectionNaReferencia_viraLiteralInerte, valorTextoComAspas_escapaNoInsert).'
+      AC12: 'Verificado por inspeção do relatório JaCoCo: SqlGeradorUpsert 96%/92% (≥80% — meta NFR-09 atingida com folga); ResultadoUpsert 100%/100%; ValorSerializado 100%; Fluxo 100%/100% (mantido); Coercionador 100%/100% (regressão zero, Story 4.1 não tocada); SqlEscape 100%; ResultadoUpdate 100%/100%; LinhaMapeada 100%/100%; SqlGeradorUpdate 90%/85% (Story 4.2 sem regressão).'
+      AC13: 'Inspeção das mensagens hardcoded: todas em PT ("Lista de SQLs não pode ser nula em ResultadoUpsert.sucesso.", "SQLs de sucesso não podem conter elementos nulos ou em branco.", "Lista de erros não pode ser nula ou vazia em ResultadoUpsert.falha.", "Erros não podem conter elementos nulos ou em branco.", "linha/mapeamento/fluxo/coercionador não pode ser nulo.", "Coluna ''<header>'': <erro>", "Código do imóvel: <erro>"). Sem System.out.println. Sem Logger nas 2 classes novas (função pura). Imports absolutos confirmados (16 imports de java.* + br.com.arxcode.tematica.geo.*; nenhum wildcard).'
+      AC14: '`./mvnw -B verify` BUILD SUCCESS com 325/325 testes verdes (delta +40 sobre baseline 285); nenhuma dependência nova em pom.xml; reflect-config.json não tocado.'
+      AC15: 'Smoke não-regressão de formato — coberto por SmokeFormatoNaoRegressao.cadaPar_seguePadraoCanonico @ParameterizedTest @EnumSource(Fluxo.class) com 6 asserções por execução (DELETE startsWith aise.<tab>, contains "WHERE referencia =" + "AND idcampo =", endsWith ";"; INSERT startsWith aise.<tab>, contains "(id, referencia, valor, idcampo, idalternativa)" e nextval(''aise.<seq>''), endsWith ";").'
+      AC16: 'Given Fluxo.TERRITORIAL/PREDIAL.sequenceRespostas(), When invocado, Then retorna "s_respostaterreno_id"/"s_respostasegmento_id" — coberto por FluxoTest (2 testes novos: territorial_sequenceRespostas_eh_s_respostaterreno_id, predial_sequenceRespostas_eh_s_respostasegmento_id). Integração validada pelo SmokeFormatoNaoRegressao via contains nextval(''aise.''+fluxo.sequenceRespostas()+'')'').'
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'CON-03 cumprido por delegação transparente — SqlGeradorUpsert NÃO escapa diretamente (zero código de escape próprio); referencia passa por coercionador.coagir(_, Tipo.TEXTO, null) → coagirTexto:95 → SqlEscape.aspas (cadeia já blindada pela Story 4.1/4.2). Vetores reais cobertos: O''Brien produz ''O''''Brien'' em DELETE+INSERT (EscapeReferencia.codigoComAspaSimples_escapaNoDeleteEInsert); injection "1''; DROP TABLE x; --" vira literal inerte ''1''''; DROP TABLE x; --'' (EscapeInjection.injectionNaReferencia_viraLiteralInerte) — DROP TABLE jamais executável (entre aspas, com '' interno duplicado, ; já dentro do literal). Valores TEXTO de células também escapados: x''y → ''x''''y'' (EscapeInjection.valorTextoComAspas_escapaNoInsert). DECIMAL/DATA/MULTIPLA_ESCOLHA serializados pelo Coercionador: DECIMAL via BigDecimal.toPlainString (não interpolável de string externa), DATA via LocalDate parseada (não-string), MULTIPLA_ESCOLHA via id Integer mapeado por alternativas (não-string). Aspas externas em DECIMAL/DATA do helper serializarValor são literais hardcoded no código fonte, não influenciáveis pela entrada. Sem regressão da blindagem CON-03 estabelecida pela 4.2.'
+  performance:
+    status: PASS
+    notes: 'Função pura síncrona, sem I/O. Iteração linear O(n) sobre colunasDinamicas (n ≤ ~30 colunas dinâmicas tipicamente em planilhas IPTU); ArrayList sem pré-dimensionamento (linha 118-119: new ArrayList<>()) — leve subótimo cosmético, cresce O(log n) com array doubling, irrelevante para n<100. Concatenação de String com + nas linhas 163-173 compilada em StringBuilder pelo javac — adequado. Pipeline DATA: 1 substring + 1 LocalDate.parse + 1 format por célula DATA — O(1) constante, irrelevante para volume IPTU. Nenhum estado mutável compartilhado — instanciável uma vez no orquestrador (Story 4.5) e thread-safe. Sem hot-path identificado.'
+  reliability:
+    status: PASS
+    notes: 'Erro como dado (ResultadoUpsert.falha com lista PT) preserva pipeline (PRD FR-13). Acumulação plena de falhas antes de retornar (laço completo coleta todas as falhas — não há short-circuit) — permite ao operador corrigir N células em uma única passada na planilha. Falha em qualquer célula dinâmica → abandona TODOS os UPSERTs da linha (alinhado a AGENTS.md "Código imobiliário ausente → log de erro, pula a linha inteira"). Validação de args como IllegalArgumentException (defeito de programação) distinta de ResultadoUpsert.falha (dado ruim) — separação clara. Records imutáveis com List.copyOf garantem isolamento. SqlGeradorUpsert é função pura sem estado — reproducibilidade absoluta. Caso degenerado (mapeamento sem dinâmicas) tratado como sucesso(empty) — divergência intencional vs. 4.2 documentada no Javadoc com referência cruzada. Pipeline DATA ISO → BR robusto: substring(6,16) é seguro porque coagirData:128 sempre devolve "DATE ''<10 chars ISO>''" (17 chars total quando ok); ParseException teórico não pode ocorrer porque Coercionador já valida (contrato AC4).'
+  maintainability:
+    status: PASS
+    notes: 'Javadoc PT extenso nas 2 classes novas e no método novo de Fluxo (sequenceRespostas): contratos, decisões arquiteturais (função pura sem CDI, Coercionador injetado por parâmetro, divergência intencional vs. 4.2 em 3 pontos — caso degenerado, célula vazia, formato DATA), referências cruzadas explícitas a ResultadoUpdate/SqlGeradorUpdate/Coercionador e à Story 4.5 que orquestra. Pipeline DATA ISO → BR documentado linha-a-linha em AC11(c) da story e em comentário de bloco no helper serializarValor. Sub-record privado ValorSerializado isola par (valor, idAlternativa) com nomes semânticos — preferível a tupla informal (Map.Entry) ou retorno de String[]. Magic numbers da substring(6, 16) documentados em comentário inline ("DATE ''YYYY-MM-DD''" 17 chars). Helper privado mantém API pública limpa (apenas gerar()). Constantes nomeadas (DATA_BR DateTimeFormatter estático). Testes organizados em @Nested por tema com nomes descritivos snake_case_underscores em pt — facilita navegação. Sem AssertJ (alinhado a CONVENCOES.md). Duplicação evitável com 4.2: praticamente nula — VOs distintos por necessidade (List<String> vs String), gerador distinto por padrão de SQL distinto (UPDATE single vs DELETE+INSERT múltiplo), helpers internos não compartilhados intencionalmente.'
+
+top_issues:
+  - id: ISSUE-4.3-01
+    severity: low
+    status: OPEN
+    title: 'Branch L128 (codigoImovel falha de coerção) defensivo e inalcançável em runtime — não há teste documental'
+    description: 'A linha 128 de SqlGeradorUpsert.java acumula "Código do imóvel: " + rcRef.erro() quando coercionador.coagir(linha.codigoImovel(), Tipo.TEXTO, null) falha. Como (a) Coercionador.coagirTexto só falha para entrada null/blank e (b) LinhaMapeada já valida codigoImovel non-null/non-blank no construtor canônico (LinhaMapeada.java), esse ramo é inalcançável em runtime real — defesa em profundidade. JaCoCo reporta como missed (1 das 2 linhas missed em SqlGeradorUpsert). A self-report do @dev nas Completion Notes/File List menciona "2 missed em ramos defensivos default switch" — incorreto: não há default em switch (todos os 4 valores de Tipo são cobertos exaustivamente pelo switch expression switch sem default na linha 204-216). Risco baixo: comportamento correto, apenas não exercitado pelos testes. Cobertura geral 96%/92% mantém-se acima da meta NFR-09 80% com folga.'
+    suggested_owner: dev
+    resolution: 'Em uma futura passada de hardening (story de polimento ou junto à 4.5): adicionar teste documental análogo a FormatoMensagemDeErro da Story 4.2 que monte manualmente a chamada com um codigoImovel forçando falha (via mock/spy do Coercionador, ou refatorando Coercionador para receber via composição) — não justifica iteração isolada. Alternativa: aceitar como ramo defensivo permanentemente não-coberto e atualizar o comentário da story.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/geracao/SqlGeradorUpsert.java:121-129'
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/LinhaMapeada.java'
+
+  - id: ISSUE-4.3-02
+    severity: low
+    status: OPEN
+    title: 'Branch L157 (continue após acumulação prévia) exercitável mas não coberto — auto-relato impreciso'
+    description: 'A linha 157 de SqlGeradorUpsert.java contém "continue;" dentro do bloco "if (!erros.isEmpty()) {" (linha 156) — atingido quando uma célula anterior falhou coerção mas a célula atual passou (não geramos SQL para linha que terminará em falha). O teste erroEmUmaCelula_naoEmiteSqlParaAsValidasDaMesmaLinha tem fixture "OK_TEXTO" + "RUIM_DECIMAL" nessa ordem: quando RUIM_DECIMAL processa, OK_TEXTO já gerou SQL (sqls não-vazio, erros ainda vazio); quando RUIM_DECIMAL falha, erros recebe entrada e o laço termina. O ramo L157 só seria atingido se a ordem fosse RUIM_DECIMAL primeiro e OK_TEXTO depois — não exercitado. Auto-relato do @dev nas Completion Notes diz "2 missed em ramos defensivos default switch" — INCORRETO: este ramo é exercitável com simples reordenação no LinkedHashMap (RUIM antes, OK depois). Risco baixo: comportamento correto (verificado por inspeção), apenas falta caso de teste.'
+    suggested_owner: dev
+    resolution: 'Adicionar 1 teste em AcumulacaoDeErros: erroEmCelulaInicial_naoEmiteSqlParaCelulaSeguinteValida — fixture "RUIM_DECIMAL"="abc" depois "OK_TEXTO"="valido"; assertFalse(r.ok()), assertEquals(List.of(), r.sqls()), assertEquals(1, r.erros().size()). Eleva cobertura para ~98%/96%. Custo: ~10 LoC. Prioridade baixa — pode ser feito em janela de oportunidade (junto à 4.4 ou 4.5).'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/geracao/SqlGeradorUpsert.java:154-158'
+      - 'src/test/java/br/com/arxcode/tematica/geo/geracao/SqlGeradorUpsertTest.java:379-396'
+
+  - id: ISSUE-4.3-03
+    severity: info
+    status: INFO
+    title: 'Pipeline DATA ISO → BR usa magic numbers substring(6, 16) — fragil a mudanças no contrato do Coercionador'
+    description: 'serializarValor para Tipo.DATA executa literal.substring(6, 16) para extrair os 10 chars ISO de "DATE ''YYYY-MM-DD''" (17 chars). Comentário inline na linha 208 documenta que rc.literalSql() = "DATE ''YYYY-MM-DD''" (17 chars). Acoplamento implícito ao contrato exato de Coercionador.coagirData:128 — qualquer mudança lá (ex.: timestamp com hora "DATE ''YYYY-MM-DD HH:MM:SS''", ou prefixo TIMESTAMP) quebra esse helper silenciosamente. Mitigação atual: testes FormaSqlPorTipo asseguram saída ''15/01/2024'' exata e CoercionadorTest.java:151-155,281 asseguram formato "DATE ''YYYY-MM-DD''" — qualquer regressão dispararia teste em ambos os lados. Alternativa mais robusta: usar regex ou parsing tolerante (ex.: strip prefix "DATE ''" e suffix "''", parse central) — over-engineering para invariante atual. Sem ação.'
+    suggested_owner: dev
+    resolution: 'Sem ação. Se o contrato do Coercionador.coagirData mudar (ex.: Story de timestamps), refatorar serializarValor em conjunto. Os 2 testes de regressão (FormaSqlPorTipo e CoercionadorTest) garantem detecção precoce.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/geracao/SqlGeradorUpsert.java:207-214'
+      - 'src/main/java/br/com/arxcode/tematica/geo/geracao/Coercionador.java:128'
+
+  - id: ISSUE-4.2-01
+    severity: low
+    status: OPEN
+    title: 'Mapeamento.colunasFixas/colunasDinamicas não força LinkedHashMap nem aplica cópia defensiva — premissa de ordem é externa'
+    description: 'Pendência herdada da Story 4.2 (gate v1.1). Mantida como OPEN: a Story 4.3 reusa LinkedHashMap explícito em fixtures (verificado em SqlGeradorUpsertTest.java:38-48,105-130,etc.) seguindo a mesma mitigação da 4.2. No caminho real, Jackson produz LinkedHashMap ao desserializar mapping.json. Sem regressão, sem novo escopo nesta story.'
+    suggested_owner: dev
+    resolution: 'Inalterada — em uma futura story de hardening de Mapeamento (recomendado entre 4.5 e 6.1): adicionar cópia defensiva no construtor canônico de Mapeamento envolvendo colunasFixas/colunasDinamicas em Collections.unmodifiableMap(new LinkedHashMap<>(...)). Espelha o padrão de Classificacao.java:51-52 e LinhaMapeada.java:57-62.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/mapeamento/Mapeamento.java'
+      - 'docs/qa/gates/4.2-sql-gerador-update.yml#ISSUE-4.2-01'
+
+waiver:
+  active: false
+
+ddd_clean_architecture:
+  status: PASS
+  notes: 'Posicionamento canônico: ResultadoUpsert e SqlGeradorUpsert em geracao/ (VO de retorno e gerador de SQL) — alinhado com Arquitetura §8 e com o padrão estabelecido por Coercionador/ResultadoCoercao (4.1) e SqlGeradorUpdate/ResultadoUpdate/SqlEscape (4.2). Fluxo.sequenceRespostas em dominio/ (extensão coesa de enum existente, não cria nova classe). SqlGeradorUpsert é função pura no pacote geracao/ — public final class sem CDI, sem dependências de framework (apenas JDK + br.com.arxcode.tematica.geo.{dominio,mapeamento}). Coercionador injetado por parâmetro (não por campo final) — desacopla a fábrica do gerador da do coercionador, padrão consistente com 4.1/4.2. Records imutáveis (ResultadoUpsert) com construtor canônico que normaliza campos via List.copyOf (espelha ResultadoUpdate). SRP: cada classe tem responsabilidade única (ResultadoUpsert transporta resultado; ValorSerializado isola par valor+idAlternativa; SqlGeradorUpsert gera DELETE+INSERT). OCP: SqlGeradorUpsert é fechado para modificação no contrato (Mapeamento, Fluxo, Coercionador estáveis) e aberto para extensão via Story 4.5 (orquestração). Interface Segregation: assinatura única gerar(linha, mapeamento, fluxo, coercionador) — sem overloads. Dependency Inversion: depende de domain stable (Fluxo, Tipo, Mapeamento) e geração 4.1 (Coercionador), não de fontes voláteis. Aderente a CONVENCOES.md (imports absolutos, lowercase package, PT para usuário, sem System.out, Logger não usado por ser função pura), AGENTS.md (regra invariável "respostaterreno/respostasegmento UPSERT por (referencia, idcampo)" — aqui via DELETE+INSERT pois não há UNIQUE INDEX). Marker class para reflexão native-image NÃO necessária (nenhuma das classes novas atravessa fronteira Jackson; ResultadoUpsert é VO interno; ValorSerializado é private record).'
+
+dependent_stories_risk:
+  status: LOW
+  notes:
+    - story: '4.4 (LogErros)'
+      risk: 'Baixo — ResultadoUpsert.erros() entrega lista imutável de mensagens PT prontas para escrita no .log. Mesmo padrão de ResultadoUpdate.erros() consumido pela 4.2. ISSUE-4.1-03 (sanitização de control chars) ainda em aberto — se uma célula contiver \\n ou \\r, a mensagem PT virá multi-linha. Não bloqueante.'
+    - story: '4.5 (ImportarCommand)'
+      risk: 'Baixo — orquestrador instancia SqlGeradorUpsert uma vez (função pura, thread-safe) e compartilha entre iterações. Para cada linha, chamará SqlGeradorUpdate (4.2) + SqlGeradorUpsert (4.3): primeiro gera UPDATE da tabela principal; segundo gera N pares DELETE+INSERT da tabela de respostas. Caso degenerado de 4.3 (sucesso(empty)) NÃO faz a linha sumir do .sql — UPDATE da principal ainda é gerado. Falha de coerção em qualquer dos dois → linha vai inteira ao .log (alinhado a AGENTS.md). Verificar: ordem de emissão UPDATE primeiro vs DELETE+INSERT depois importa para idempotência (DELETE da resposta só após UPDATE da principal? ou independente? — recomendar UPDATE primeiro, depois DELETE+INSERT do bloco de respostas dessa linha).'
+    - story: '6.1 (native-image hardening)'
+      risk: 'Baixo — nenhuma das 2 classes novas usa reflexão; nenhuma é (de)serializada por Jackson. ValorSerializado é private record (não cruza fronteira). LocalDate/DateTimeFormatter já validados em GraalVM Java 21 (uso da Story 4.1). Não precisam entrar em reflect-config.json (não tocado nesta story, conforme planejado).'
+    - story: '4.2.1 (tipagem completa de colunas fixas — futura)'
+      risk: 'Sem impacto direto — SqlGeradorUpsert consome tipo real via coluna.tipo() do ColunaDinamica (já tipado desde Story 3.3). A 4.2.1 afeta apenas SqlGeradorUpdate (4.2), não 4.3.'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Adicionar 1 teste para fechar ISSUE-4.3-02 (continue após acumulação prévia) — eleva cobertura ramo L157 e fecha LOW.'
+      owner: '@dev (em janela de oportunidade — junto à 4.4 ou 4.5)'
+    - action: 'Avaliar fechamento ou aceite documental de ISSUE-4.3-01 (ramo defensivo L128 inalcançável) — corrigir auto-relato impreciso na Story 4.3 sobre "default switch" quando @sm/@po atualizar Change Log futuro.'
+      owner: '@dev'
+    - action: 'Hardening de Mapeamento — fecha ISSUE-4.2-01 herdada (sem novo material).'
+      owner: '@dev (story de hardening entre 4.5 e 6.1)'
+    - action: 'Aplicar sanitização de control chars no escritor do .log em Story 4.4 — pendência herdada de ISSUE-4.1-03.'
+      owner: '@dev (via Story 4.4)'
+
+history:
+  - date: '2026-05-03T11:08:00-03:00'
+    gate: PASS
+    score: 92
+    note: 'Review único. AC1–AC16 verdes. 40 testes novos (ResultadoUpsert 13 + SqlGeradorUpsert 25 + FluxoTest +2) cobrem todos os ACs incluindo paramétricos @EnumSource(Fluxo.class) em CasosDegenerados e SmokeFormatoNaoRegressao. Cobertura JaCoCo confirmada: SqlGeradorUpsert 96%/92% (≥80% NFR-09 com folga); ResultadoUpsert 100%/100%; ValorSerializado 100%; Fluxo 100% (mantido); Coercionador 100%/100% (regressão zero — Story 4.1 não tocada, contrato ISO preservado para uso da 4.2); SqlGeradorUpdate 90%/85% (Story 4.2 sem regressão). Suíte total 325/325 verde em ./mvnw -B verify. Pipeline DATA ISO → BR (AC11(c)) implementado conforme refino v2.5: literal.substring(6,16) → LocalDate.parse(ISO_LOCAL_DATE) → format(ofPattern("dd/MM/uuuu")) → envelope aspas. Round-trip ISO/BR convergindo para saída BR coberto explicitamente (data_isoNaEntrada_geraSaidaBR + data_brNaEntrada_geraMesmaSaidaBR). Sintaxe DELETE+INSERT correta (sem UNIQUE INDEX em (referencia, idcampo); ON CONFLICT lançaria erro PG); schema "aise." prependido em DELETE FROM, INSERT INTO e nextval; coluna única "valor"; idalternativa NULL exceto MULTIPLA_ESCOLHA; valor='''' literal para MULTIPLA_ESCOLHA. Segurança CON-03 verificada por delegação transparente: O''Brien e injection inertes em DELETE+INSERT. Política AC5/AC9 implementada: laço completo coleta todas as falhas; ISSUE-4.2-02 LOW efetivamente fechada (AcumulacaoDeErros força DECIMAL+DATA inválidos com 2 mensagens reais). Fluxo.sequenceRespostas (AC16) entregue dentro da story. 4 issues registradas: 2 LOW novas (ISSUE-4.3-01 ramo defensivo L128 inalcançável; ISSUE-4.3-02 ramo L157 exercitável mas não coberto — corrige auto-relato impreciso do @dev sobre "default switch"), 1 INFO nova (ISSUE-4.3-03 magic numbers substring(6,16) acoplados ao Coercionador), 1 LOW herdada (ISSUE-4.2-01 hardening Mapeamento). Nenhuma bloqueia o gate. Story Done; pronta para *close-story 4.3 pelo @po após PR mergeado em main.'
