@@ -46,4 +46,16 @@ class FluxoTest {
     void predial_colunaChave_eh_idkey() {
         assertEquals("idkey", Fluxo.PREDIAL.colunaChave());
     }
+
+    // ---------- Story 4.3: sequenceRespostas() (AC16) ----------
+
+    @Test
+    void territorial_sequenceRespostas_eh_s_respostaterreno_id() {
+        assertEquals("s_respostaterreno_id", Fluxo.TERRITORIAL.sequenceRespostas());
+    }
+
+    @Test
+    void predial_sequenceRespostas_eh_s_respostasegmento_id() {
+        assertEquals("s_respostasegmento_id", Fluxo.PREDIAL.sequenceRespostas());
+    }
 }

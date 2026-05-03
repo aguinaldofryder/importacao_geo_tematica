@@ -39,25 +39,27 @@ public enum Fluxo {
      * funcionalidade no catálogo: {@code "TERRENO"}; coluna chave do JOIN:
      * {@code tribcadastrogeral_idkey}.
      */
-    TERRITORIAL("TERRENO", "tribcadastroimobiliario", "respostaterreno", "tribcadastrogeral_idkey"),
+    TERRITORIAL("TERRENO", "tribcadastroimobiliario", "respostaterreno", "tribcadastrogeral_idkey", "s_respostaterreno_id"),
 
     /**
      * Fluxo Predial — planilha {@code TABELA_PREDIAL_V001.xlsx}.
      * Tabela principal: {@code tribimobiliariosegmento}; respostas: {@code respostasegmento};
      * funcionalidade no catálogo: {@code "SEGMENTO"}; coluna chave do JOIN: {@code idkey}.
      */
-    PREDIAL("SEGMENTO", "tribimobiliariosegmento", "respostasegmento", "idkey");
+    PREDIAL("SEGMENTO", "tribimobiliariosegmento", "respostasegmento", "idkey", "s_respostasegmento_id");
 
     private final String funcionalidade;
     private final String tabelaPrincipal;
     private final String tabelaRespostas;
     private final String colunaChave;
+    private final String sequenceRespostas;
 
-    Fluxo(String funcionalidade, String tabelaPrincipal, String tabelaRespostas, String colunaChave) {
+    Fluxo(String funcionalidade, String tabelaPrincipal, String tabelaRespostas, String colunaChave, String sequenceRespostas) {
         this.funcionalidade = funcionalidade;
         this.tabelaPrincipal = tabelaPrincipal;
         this.tabelaRespostas = tabelaRespostas;
         this.colunaChave = colunaChave;
+        this.sequenceRespostas = sequenceRespostas;
     }
 
     /**
@@ -99,5 +101,20 @@ public enum Fluxo {
      */
     public String colunaChave() {
         return colunaChave;
+    }
+
+    /**
+     * Nome físico da sequence Postgres usada para alimentar a coluna {@code id}
+     * da tabela de respostas no schema {@code aise} —
+     * {@code s_respostaterreno_id} (territorial) ou
+     * {@code s_respostasegmento_id} (predial). Consumida pela Story 4.3
+     * ({@code SqlGeradorUpsert}) na cláusula {@code VALUES (nextval('aise.<seq>'), ...)}
+     * dos {@code INSERT}s de células dinâmicas (sintaxe PG-específica — CON-04).
+     *
+     * <p>Sequences confirmadas em {@code information_schema.sequences} do banco
+     * IPTU em 2026-04-30. Story: 4.3 — adicionado AC16.
+     */
+    public String sequenceRespostas() {
+        return sequenceRespostas;
     }
 }
