@@ -64,6 +64,10 @@ reports/
 # Saída gerada pela ferramenta
 saida/
 
+# Artefatos CLI gerados na raiz durante desenvolvimento
+/colunas.json
+/mapping.json
+
 # IDE extras
 *.iml
 .settings/
