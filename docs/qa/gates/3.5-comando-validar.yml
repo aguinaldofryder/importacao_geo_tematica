@@ -1,0 +1,180 @@
+# ============================================================================
+# GATE RETROATIVO — Story 3.5 (Comando `validar`)
+# ----------------------------------------------------------------------------
+# Este arquivo de gate foi recriado em 2026-05-03 por @po (Pax) com base nas
+# evidências dos commits e do Change Log da story (em particular a v1.2 que
+# documenta a aplicação das recomendações @qa).
+#
+# O review original foi conduzido e APROVADO por Quinn (@qa) em 2026-04-29
+# (commit `8c1d9d3` — "chore(3.5): aplicar recomendações do @qa (review
+# aprovado, 0 críticos)"), mas o gate file não foi gravado em `main` na
+# época por bug de processo (mesma janela do bug que deixou a branch
+# `chore/close-story-3.5`/commit `658f4d1` órfã, sem merge).
+#
+# Os campos abaixo (severidade, score, NFRs, issues) são REPRODUÇÃO FIEL do
+# veredito histórico, usando como fontes:
+#   - Change Log v1.2 da story (3 avisos @qa endereçados; 4 sugestões — 2
+#     aplicadas, 2 declinadas com justificativa).
+#   - Resultados de teste e cobertura JaCoCo registrados nas Completion
+#     Notes da story (8/8 verdes; 89% linhas / 75% branches).
+#   - Commits PR #13: `f8d3ef5` (hotfix MapearCommandTest), `6c31ea9` (feat),
+#     `8c1d9d3` (chore @qa), merge `ea4e689`.
+#   - Gate da Story 3.4 (`3.4-comando-mapear.yml`) usado como template
+#     estrutural — score 90 alinhado por critérios equivalentes (orquestrador
+#     thin verde, 0 críticos, issues LOW/INFO sem bloqueio).
+#
+# Nenhuma reabertura de review é necessária — código está em `main` desde
+# 2026-04-29 (commit `ea4e689`) e segue estável; este gate apenas formaliza
+# por escrito o veredito que já existia no fluxo da época.
+# ============================================================================
+schema: 1
+story: '3.5'
+story_title: 'Comando `validar` (gate offline do mapping.json — Marco M1)'
+gate: PASS
+status_reason: 'Implementação completa e thin dos 14 ACs. Pipeline 3-etapas com fail-fast (validação de arquivo / parsing via MapeamentoStore / validação semântica via MapeamentoValidador), exit codes alinhados FR-16 (0 sucesso, 1 qualquer falha — sem exit 2 nesta story conforme decisão arquitetural AC5), comando puramente offline (AC4 — sem DataSource/repositórios injetados), agrupamento de pendências por header com strip do prefixo "Coluna ''X'': " para reduzir ruído visual, MapeamentoValidador instanciado como private static final (AC10 — espelha decisão arquitetural da Story 3.3), reuso integral de MapeamentoStore.carregar (AC11 — único ponto de entrada para o JSON em todo o sistema). 8 cenários E2E AC13 (a)–(h) verdes em @QuarkusTest sem Testcontainers. Cobertura JaCoCo ValidarCommand 89% linhas / 75% branches (excede meta AC14 ≥80% linhas em +9pp). Recomendações @qa (3 avisos + 2 sugestões aceitas) integralmente aplicadas em v1.2 — 2 sugestões declinadas com justificativa explícita preservada no Change Log. Convenções AGENTS.md/CONVENCOES.md respeitadas: zero System.out/err, zero wildcard imports geo.*, logger JBoss, mensagens PT (NFR-01), Javadoc PT com referências às Stories 1.3/3.1/3.3. Marco M1 (CLI JVM + mapeamento — ciclo mapear→validar→editar→validar — FR-07/08/09) entregue.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2026-04-29T22:00:00-03:00'
+gate_file_recriado_em: '2026-05-03T00:00:00-03:00'
+gate_file_recriado_por: 'Pax (@po) — gate retroativo (ver preâmbulo no topo do arquivo)'
+
+quality_score: 90
+expires: '2026-05-13T22:00:00-03:00'
+
+evidence:
+  tests_reviewed: 8
+  tests_total_story: 143
+  tests_baseline_anterior: 136
+  testes_novos_introduzidos: 8
+  hotfix_integrado_no_pr: 'f8d3ef5 — isola MapearCommandTest de overrides locais em ./config/ via @TestProfile DefaultsCodigoImovelProfile; sanou as 2 falhas pré-existentes registradas como ressalva na v1.1 da story 3.5'
+  jacoco_validar_command_lines: '89%'
+  jacoco_validar_command_branches: '75%'
+  jacoco_mapeamento_validador_lines: '≥90% (mantida desde Story 3.3 — não alterado nesta story)'
+  risks_identified: 4
+  risks_resolved: 3
+  risks_deferred: 1
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'NFR-07 não-aplicável diretamente (comando puramente offline AC4 — sem conexão JDBC, sem DataSource injetado, zero risco de vazamento de credencial). MapeamentoIoException da Story 3.1 já emite mensagens PT sem expor caminhos absolutos sensíveis (apenas o do mapping.json fornecido pelo operador via --mapeamento). Sem `e.getMessage()` cru de exceção de banco em nenhum ponto do pipeline. Falha inesperada (catch defensivo) emite "Falha inesperada: <getMessage()>" — risco residual aceitável (ramo prático inalcançável conforme decisão arquitetural; comentário "// Defesa: ..." adicionado em v1.2 explicitando inalcançabilidade).'
+  performance:
+    status: PASS
+    notes: 'NFR-04 (streaming) não-aplicável — ValidarCommand é gate booleano sobre artefato em memória (~poucos KB de JSON). Pipeline 3-etapas com fail-fast: arquivo ausente → exit imediato sem tentar parse; JSON inválido → exit antes da validação semântica. MapeamentoValidador (Story 3.3) é stateless e single-pass sobre as listas de fixas/dinâmicas. MapeamentoValidador como `static final VALIDADOR` (AC10) elimina alocação por invocação — instância única JVM-wide thread-safe.'
+  reliability:
+    status: PASS
+    notes: 'Pipeline 3-etapas com try/catch específicos: (1) Files.exists falha → mensagem PT específica + exit 1; (2) MapeamentoIoException da carga → "Mapeamento inválido: ..." + exit 1 (não exit 2 — categoria FR-16 "mapping inválido" = exit 1); (3) ResultadoValidacao.valido()==false → relatório agrupado por header + exit 1. Exception genérica defensiva → "Falha inesperada: ..." + LOG.error preservando stacktrace. Helper de agrupamento agruparPendenciasPorHeader usa LinkedHashMap preservando ordem emitida pelo MapeamentoValidador (fixas → dinâmicas, Story 3.3 T2). Ramos defensivos `(sem header)` (regex `^Coluna ''([^'']+)'':\s*(.*)$` falha) garantem que nenhuma mensagem se perde mesmo se contrato AC6 da 3.3 mudar no futuro. Aviso #2 (v1.2) eliminou disjunção fraca em deveUsarMappingJsonNoDiretorioCorrenteQuandoOpcaoOmitida — Assumptions.assumeFalse skipa de forma determinística quando ./mapping.json existe no CWD.'
+  maintainability:
+    status: PASS
+    notes: 'Javadoc PT extensivo no ValidarCommand referencia Stories 1.3 (registro em MainCommand), 3.1 (MapeamentoStore.carregar), 3.3 (MapeamentoValidador.validar). Comentários "// Defesa: ..." (adicionados em v1.2) explicitam inalcançabilidade prática dos catches Exception genéricos nas etapas 2 e 3 — facilita auditoria futura. Padrão @Dependent + @Unremovable consistente com ValidarConexaoCommand/MapearCommand. Migração Runnable→Callable<Integer> (AC2) trivial e justificada (necessária para exit codes — FR-16). Reuso integral de MapeamentoStore.carregar (AC11) preserva o contrato single-entry-point para JSON estabelecido na Story 3.1 — zero duplicação de parser. Decisão de não criar fallback ASCII (sugestão @qa #2 declinada) preservada com justificativa: consistência com Stories 1.4/3.4 já em produção; reabrir se surgir bug em terminal Windows legado. Decisão de não adicionar teste unitário do parser (sugestão @qa #1 declinada) preservada com justificativa: parser já exercitado pelos cenários AC13 (h) agrupamento, (f) 1 pendência, (g) 3 pendências distintas — cobertura efetiva equivalente sem custo de classe adicional.'
+
+top_issues:
+  - id: ISSUE-3.5-AVISO-01
+    severity: low
+    status: RESOLVED
+    title: 'Catches Exception genéricos nas etapas 2 e 3 sem comentário de inalcançabilidade prática'
+    description: 'Aviso @qa: os catches `catch (Exception e)` defensivos nas etapas 2 (parsing) e 3 (validação semântica) do pipeline não documentavam por que são considerados ramos defensivos (não-mapeados pelo contrato). A Story 3.1 (MapeamentoStore.carregar) e a Story 3.3 (MapeamentoValidador.validar) já garantem por contrato as exceções específicas (MapeamentoIoException, ImportacaoException), tornando o catch genérico inalcançável em uso normal. Sem comentário, futuro mantenedor poderia tentar "limpar" o catch e remover proteção legítima.'
+    suggested_owner: dev
+    resolution: 'RESOLVIDO em v1.2 (commit 8c1d9d3): adicionados comentários "// Defesa: ..." nos 2 catches Exception explicitando que (a) MapeamentoStore só lança MapeamentoIoException por contrato AC11; (b) MapeamentoValidador só lança ImportacaoException em validar(null) por contrato Story 3.3; (c) o catch genérico cobre apenas falhas catastróficas não-mapeadas e preserva stacktrace via LOG.error.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/cli/ValidarCommand.java (etapas 2 e 3 do pipeline em call())'
+
+  - id: ISSUE-3.5-AVISO-02
+    severity: medium
+    status: RESOLVED
+    title: 'Teste deveUsarMappingJsonNoDiretorioCorrenteQuandoOpcaoOmitida tinha disjunção fraca que podia esconder regressão'
+    description: 'Aviso @qa: o teste do default ./mapping.json (cenário AC13.c) usava lógica `existiaAntes ? assertX : assertY` — se o arquivo já existisse no CWD durante CI (cenário improvável mas possível em ambiente compartilhado), o teste seguia verde mesmo se o `defaultValue = "./mapping.json"` da @Option fosse acidentalmente removido. Risco de falso-positivo em ambiente não-determinístico.'
+    suggested_owner: dev
+    resolution: 'RESOLVIDO em v1.2 (commit 8c1d9d3): teste reescrito para usar Assumptions.assumeFalse(Files.exists(Path.of("./mapping.json"))) — agora skipa de forma determinística quando ./mapping.json existe no CWD; quando não existe, asserta exit 1 + mensagem específica que prova que o defaultValue está ativo (sem opção --mapeamento, o command tentou exatamente "./mapping.json"). Verificação: ./mvnw test -Dtest=ValidarCommandTest → Tests run: 8, Failures: 0.'
+    refs:
+      - 'src/test/java/br/com/arxcode/tematica/geo/cli/ValidarCommandTest.java#deveUsarMappingJsonNoDiretorioCorrenteQuandoOpcaoOmitida'
+
+  - id: ISSUE-3.5-AVISO-03
+    severity: low
+    status: RESOLVED
+    title: 'Bloco "Build" das Completion Notes misturava trabalho desta story com ressalva herdada'
+    description: 'Aviso @qa: bloco "Build (./mvnw -B verify)" listava "143 testes verdes" sem distinguir explicitamente que (a) os 8 cenários novos AC13 estavam 100% verdes (`Tests run: 8, Failures: 0` em ValidarCommandTest); (b) havia 2 falhas pré-existentes em MapearCommandTest fora do escopo desta story (verificadas via git stash antes da implementação). Risco de leitor casual confundir as falhas pré-existentes com regressão introduzida pela 3.5.'
+    suggested_owner: dev
+    resolution: 'RESOLVIDO em v1.2 (commit 8c1d9d3): bloco "Build" reescrito separando 2 sub-blocos — "Trabalho desta story: 8/8 testes novos verdes" e "Ressalva herdada (fora do escopo): 2 falhas pré-existentes em MapearCommandTest causadas por desalinhamento fixture vs ./config/codigo-imovel.territorial". A ressalva acabou completamente sanada pelo hotfix `f8d3ef5` integrado ao mesmo PR #13 (isolamento via @TestProfile DefaultsCodigoImovelProfile) — registro mantido para rastro histórico.'
+    refs:
+      - 'docs/stories/3.5.comando-validar.md (Completion Notes — bloco Build)'
+
+  - id: ISSUE-3.5-SUG-01
+    severity: info
+    status: DECLINED
+    title: 'Sugestão @qa: criar teste unitário dedicado do helper agruparPendenciasPorHeader'
+    description: 'Sugestão para extrair teste unitário JUnit puro de agruparPendenciasPorHeader (regex de extração de header + agrupamento via LinkedHashMap) cobrindo casos extremos sem precisar bootar @QuarkusTest.'
+    suggested_owner: dev
+    resolution: 'DECLINADA em v1.2 com justificativa: o parser/agrupador já é exercitado de ponta a ponta pelos cenários AC13 (h) "verifica que header aparece uma única vez" via assertEquals(1, stringCount(stderr, "  - HEADER_X:")), (f) "1 pendência" via substring matching, e (g) "3 pendências em colunas distintas" — cobertura efetiva equivalente. Adicionar classe nova de teste AgruparPendenciasPorHeaderTest aumentaria a superfície de manutenção sem ganho real de cobertura. Decisão consistente com a regra de Sandi Metz (extrair quando houver 3+ chamadores não-cobertos por testes existentes).'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/cli/ValidarCommand.java#agruparPendenciasPorHeader'
+
+  - id: ISSUE-3.5-SUG-02
+    severity: info
+    status: DECLINED
+    title: 'Sugestão @qa: adicionar fallback ASCII para os caracteres ✓ / ✗ em terminais sem suporte UTF-8'
+    description: 'Sugestão para detectar locale/encoding do terminal e substituir ✓/✗ por [OK]/[FALHA] em terminais legados (Windows cmd.exe sem chcp 65001, alguns terminais Solaris/AIX) que não renderizam bem caracteres unicode em stdout/stderr.'
+    suggested_owner: dev
+    resolution: 'DECLINADA em v1.2 com justificativa: contraria consistência com Stories 1.4 (✓ em ValidarConexaoCommand) e 3.4 (✓/✗ em MapearCommand) já em produção e mergeadas. Reabrir como hotfix dedicado (story de housekeeping ou nas 6.1/6.2 — perfil nativo + matriz CI Linux/Windows) se surgir bug reportado por operador em terminal Windows legado. Documentação operacional pode recomendar `chcp 65001` no MANUAL.md (Story 6.4) como mitigação preventiva.'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/cli/ValidarCommand.java#imprimirSucesso'
+      - 'src/main/java/br/com/arxcode/tematica/geo/cli/ValidarCommand.java#imprimirPendencias'
+
+  - id: ISSUE-3.5-SUG-03
+    severity: info
+    status: APPLIED
+    title: 'Sugestão @qa: Javadoc no campo @Inject ValidarCommand command no teste documentando reuso @Dependent'
+    description: 'Sugestão para documentar via Javadoc no campo `@Inject ValidarCommand command` do ValidarCommandTest a razão de usar injeção CDI em vez de `new ValidarCommand()` — o construtor manual deixaria mapeamentoStore=null e quebraria todos os cenários.'
+    suggested_owner: dev
+    resolution: 'APLICADA em v1.2 (commit 8c1d9d3): Javadoc adicionado ao campo explicando (a) por que CDI é necessário (preencher @Inject mapeamentoStore); (b) por que @Dependent permite reuso seguro entre testes JUnit (cada teste recebe instância fresca via lookup); (c) referência ao padrão estabelecido em MapearCommandTest:51.'
+    refs:
+      - 'src/test/java/br/com/arxcode/tematica/geo/cli/ValidarCommandTest.java (campo @Inject ValidarCommand command)'
+
+  - id: ISSUE-3.5-SUG-05
+    severity: info
+    status: APPLIED
+    title: 'Sugestão @qa: nota inline no item de DoD do *close-story 3.5 deixando claro que é responsabilidade do @po'
+    description: 'Sugestão para adicionar nota inline no checkbox `[ ] @po *close-story 3.5` esclarecendo que @dev cumpriu sua parte (DoD técnica completa) e que aguarda apenas ação do @po — evita confusão durante handoff.'
+    suggested_owner: dev
+    resolution: 'APLICADA em v1.2: nota inline `_(aguardando ação do @po — não é tarefa do @dev)_` adicionada ao item de DoD. Após o close retroativo de 2026-05-03 esta nota foi atualizada para `_(close retroativo executado em 2026-05-03 — ver Change Log v1.3)_` pelo Pax (@po).'
+    refs:
+      - 'docs/stories/3.5.comando-validar.md (seção DoD)'
+
+waiver:
+  active: false
+
+ddd_clean_architecture:
+  status: PASS
+  notes: 'ValidarCommand é orquestrador puro (Application Service) ainda mais thin que MapearCommand — wiring de 1 adapter de I/O (MapeamentoStore) + 1 service de domínio (MapeamentoValidador). Zero regra de negócio nova: toda a lógica de validação semântica (8 regras de pendência) permanece encapsulada no MapeamentoValidador (Story 3.3) testado isoladamente com 18 testes JUnit puros. Pacote cli/ alinhado com Arquitetura §3 (CLI). Decisão de NÃO injetar DataSource/CampoRepository/AlternativaRepository/ImportacaoConfig/CodigoImovelConfig/ColunasFixasConfig (AC4 — comando puramente offline) é arquitetural: validar deve ser executável em CI sem banco e em ambientes onde o Postgres do município não está exposto (revisão por DBA, code review do mapping.json editado). MapeamentoValidador como `private static final VALIDADOR` (AC10) reflete fielmente a decisão da Story 3.3 de não anotar com @ApplicationScoped (classe stateless thread-safe). Helper agruparPendenciasPorHeader é detalhe de UX (relatório agrupado em vez de flat) corretamente encapsulado no command — strip do prefixo "Coluna ''X'': " elimina duplicação visual sob o cabeçalho `<header>:` e tem defesa em profundidade via chave especial "(sem header)" caso o contrato de emissão da 3.3 mude no futuro.'
+
+dependent_stories_risk:
+  status: LOW
+  notes:
+    - story: '4.5 (comando importar)'
+      risk: 'Baixo — reusará MapeamentoValidador.validar como gate antes da Fase 3 (FR-09). O padrão de exit codes estabelecido aqui (0 sucesso, 1 falha de validação/mapping) é referência arquitetural; o 4.5 adicionará exit 2 (execução completa com erros por linha — categoria distinta de FR-16). Padrão de injeção CDI estabelecido aqui (MapeamentoValidador como `static final`, MapeamentoStore via @Inject) é diretamente replicável.'
+    - story: '6.1/6.2/6.3 (native-image hardening + E2E nativo)'
+      risk: 'Baixo — ValidarCommand é CDI bean + picocli (Quarkus extensions lidam com reflexão automaticamente). Sem @RegisterForReflection necessário. MapeamentoValidador é POJO instanciado com `new`/`static final` — sem reflexão CDI, GraalVM compatível por construção. Recomendar smoke test rodando o binário nativo com `validar --mapeamento <fixture-completa>.json` (exit 0) e `validar --mapeamento <fixture-com-pendencia>.json` (exit 1).'
+    - story: 'Marco M1'
+      risk: 'CONCLUÍDO — fechar a 3.5 fecha o M1. Próximo marco M2 abre com a 4.1 (Coerção de tipos), que já está Closed; o caminho crítico do M2 é a 4.5 (Comando importar) — única pendente do épico 4.'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Revisitar fallback ASCII para ✓/✗ (ISSUE-3.5-SUG-02 declinada) se surgir bug reportado em terminal Windows legado durante validação operacional pós-distribuição. Considerar registrar como issue dedicada se ocorrer.'
+      owner: '@dev'
+    - action: 'No refino da Story 4.5 (comando importar), reaproveitar o padrão MapeamentoValidador como gate antes da geração de SQL — invocar exatamente como o ValidarCommand faz e retornar exit 1 sem chamar SqlGerador se o resultado for inválido. Manter consistência de mensagens PT.'
+      owner: '@sm'
+    - action: 'Marcar itens DoD finais da story: *close-story 3.5 — feito retroativamente em 2026-05-03 por @po (Pax) via commit direto em main; branch órfã `chore/close-story-3.5` (commit 658f4d1) pode ser deletada com segurança após o push deste close.'
+      owner: '@po'
+
+history:
+  - date: '2026-04-29T22:00:00-03:00'
+    gate: PASS
+    score: 90
+    note: 'Review original aprovado por Quinn (@qa) em commit `8c1d9d3` ("chore(3.5): aplicar recomendações do @qa (review aprovado, 0 críticos)"). AC1–AC14 verdes. Build ./mvnw -B verify ✓ — 143 testes (8 novos AC13 + hotfix `f8d3ef5` que sanou as 2 falhas pré-existentes do MapearCommandTest). JaCoCo ValidarCommand 89%/75% (excede meta ≥80% linhas em +9pp). Convenções respeitadas: zero System.out/err, zero wildcard imports, logger JBoss, mensagens PT (NFR-01). 3 avisos endereçados em v1.2 (catches Exception com comentários "// Defesa: ...", teste do default ./mapping.json com Assumptions.assumeFalse, bloco Build das Completion Notes reescrito). 4 sugestões: 2 aplicadas (#3 Javadoc no @Inject ValidarCommand command, #5 nota inline no DoD do *close-story), 2 declinadas com justificativa (#1 teste unitário do parser — cobertura redundante; #2 fallback ASCII — quebraria consistência com Stories 1.4/3.4). Nenhuma issue bloqueia. Recomendação: status → Done após *close-story do @po.'
+  - date: '2026-05-03T00:00:00-03:00'
+    gate: PASS
+    score: 90
+    note: 'GATE FILE RECRIADO RETROATIVAMENTE por @po (Pax) — review original ratificado sem alterações de veredito. Bug de processo histórico (gate file não chegou a `main` na época + close commit `658f4d1` ficou em branch órfã `chore/close-story-3.5` sem merge) corrigido via commit direto em `main` desta data. Status da story: Approved → Closed. Marco M1 (CLI JVM + mapeamento) formalmente concluído. Próxima story para refino: 4.5 (comando importar).'

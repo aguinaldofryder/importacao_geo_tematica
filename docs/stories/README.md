@@ -31,7 +31,7 @@
 | [3.2](./3.2.auto-mapeador.md) ✅ | AutoMapeador (header ↔ campo, valor ↔ alternativa) | @dev | 1,5 h | 2.1, 2.3, 2.4, 3.1 |
 | [3.3](./3.3.mapeamento-validador.md) ✅ | MapeamentoValidador (gate PENDENTE) | @dev | 1 h | 3.1 |
 | [3.4](./3.4.comando-mapear.md) ✅ | Comando `mapear` | @dev | 1 h | 2.3, 2.4, 3.2 |
-| [3.5](./3.5.comando-validar.md) | Comando `validar` | @dev | 0,3 h | 3.3 |
+| [3.5](./3.5.comando-validar.md) ✅ | Comando `validar` | @dev | 0,3 h | 3.3 |
 
 ## Épico 4 — Geração de SQL e execução
 
@@ -105,7 +105,7 @@
 
 | Marco | Fecha quando | Stories envolvidas |
 |---|---|---|
-| **M1** — CLI JVM + mapeamento | 3.5 verde | 1.1–1.5, 2.1–2.4, 3.1–3.5 |
+| **M1** — CLI JVM + mapeamento ✅ | 3.5 verde (concluído 2026-04-29; close formal retroativo 2026-05-03) | 1.1–1.5, 2.1–2.4, 3.1–3.5 |
 | **M2** — SQL aplicável com resumo | 5.2 verde | 4.1–4.5, 5.1–5.2 |
 | **M3** — Binários nativos + docs | 6.6 verde | 6.1–6.6 |
 | **M4** — Importação em produção | (operacional) | — |
