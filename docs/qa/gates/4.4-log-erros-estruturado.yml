@@ -1,0 +1,166 @@
+schema: 1
+story: '4.4'
+story_title: 'LogErros estruturado (artefato .log determinístico + sanitização)'
+gate: PASS
+status_reason: 'Implementação aderente aos 16 ACs da Story Approved v1.1 (validada por @po Pax score 9.6/10). 50 testes novos em 11 @Nested cobrindo todas as categorias (construtor/validação, sanitização direta via helper package-private, validação de args dos 4 registrarX, cabeçalho exato, formato linha pulada/erro coerção/erros agregados, sumário com contagem distinta, seções omitidas, determinismo de ordem + idempotência, line separator fixo, smoke log-injection). Cobertura JaCoCo de LogErros em 100% instruções e 100% branches (45/45 instruções, 13/13 branches) — excede meta NFR-09 (≥80%) ao máximo. Regressão zero confirmada nas 9 classes baseline 4.1/4.2/4.3 + domínio (Coercionador 100/100, SqlEscape 100, SqlGeradorUpdate 90/85, SqlGeradorUpsert 96/92, ResultadoUpdate 100/100, ResultadoUpsert 100/100, ResultadoCoercao 100/100, LinhaMapeada 100/100, Fluxo 100). Suíte 325 → 375 (+50, 1 skipped esperado, 0 falhas) em ./mvnw -B verify ~31s BUILD SUCCESS. Decisões arquiteturais aprovadas pelo @po implementadas com fidelidade: (a) stateful com gerar() puro/idempotente (AC11 verificado byte-a-byte); (b) API tipada por categoria (4 métodos registrarX) com validação IllegalArgumentException PT defensiva; (c) sanitização defensiva em todos os campos vindos de input externo via helper privado sanitizar(String) com early return idempotente (assertSame quando não há control char); (d) timestamp único no cabeçalho via OffsetDateTime + ISO_OFFSET_DATE_TIME (releitura pragmática NFR-08); (e) line separator fixo "\n" LF — verificado por teste dedicado que assertFalse contains("\r"); (f) construtor sobrecarga package-private LogErros(Fluxo, String, OffsetDateTime) para determinismo de testes (AC15); (g) gerar() → String puro sem I/O. ISSUE-4.1-03 LOW efetivamente fechada — helper sanitizar aplicado em codigoImovel, motivo, coluna, valorOriginal, mensagens de erros agregados e nomePlanilha; smoke SmokeLogInjection.vetorMaliciosoNaoQuebraEstrutura prova contagem estrutural exata (13 \n) com vetor que tenta forjar [linha 999] codigo=HACK — token injetado aparece exatamente uma vez como literal escapado dentro do motivo, jamais como entrada autônoma. Aderente a CONVENCOES.md (imports absolutos sem wildcard, lowercase package, PT-only NFR-01, sem System.out.println, IllegalArgumentException PT em vez de NPE, Logger Quarkus deliberadamente não usado por LogErros ser o sink do artefato .log — fronteira documentada em Javadoc da classe), Constitution (Quality First, Story-Driven, Absolute Imports), AGENTS.md (geracao/ com responsabilidade única, .log artefato distinto de quarkus.log.file.*). Decisão sobre divergência tipográfica AC6 (aspas) registrada e aceita — ver ISSUE-4.4-01 INFO. Pronta para *close-story 4.4.'
+reviewer: 'Quinn (Test Architect — Sage @qa)'
+updated: '2026-05-03T15:42:00-03:00'
+
+quality_score: 95
+expires: '2026-05-17T15:42:00-03:00'
+
+evidence:
+  tests_reviewed: 50
+  tests_total_baseline_story: 325
+  tests_total_apos_story: 375
+  tests_delta: 50
+  tests_skipped: 1
+  tests_failures: 0
+  build:
+    command: './mvnw -B verify'
+    result: 'BUILD SUCCESS'
+    mode: 'JVM'
+    duration_seconds_approx: 31
+  coverage:
+    log_erros:
+      instructions: '100%'
+      branches: '100%'
+      instructions_count: '45/45'
+      branches_count: '13/13'
+      methods: 'todos cobertos'
+      meta_nfr09: '≥ 80% — atingida ao máximo'
+      missed: 'nenhuma instrução, nenhuma branch'
+    coercionador_regressao:
+      instructions: '100%'
+      branches: '100%'
+      observacao: 'Story 4.1 intacta; nenhuma alteração em Coercionador.java.'
+    sql_escape_regressao:
+      instructions: '100%'
+      observacao: 'Story 4.2 utilitário intacto; reuso transparente.'
+    sql_gerador_update_regressao:
+      instructions: '90%'
+      branches: '85%'
+      observacao: 'Story 4.2 sem regressão.'
+    sql_gerador_upsert_regressao:
+      instructions: '96%'
+      branches: '92%'
+      observacao: 'Story 4.3 sem regressão.'
+    resultado_update_regressao:
+      instructions: '100%'
+      branches: '100%'
+    resultado_upsert_regressao:
+      instructions: '100%'
+      branches: '100%'
+    resultado_coercao_regressao:
+      instructions: '100%'
+      branches: '100%'
+    linha_mapeada_regressao:
+      instructions: '100%'
+      branches: '100%'
+    fluxo_regressao:
+      instructions: '100%'
+      observacao: 'Stories 4.2/4.3 (sequenceUpdate/sequenceRespostas) preservadas.'
+  risks_identified: 1
+  risks_resolved: 1
+  risks_deferred: 0
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    ac_gaps: []
+    given_when_then:
+      AC1: 'Given LogErros(Fluxo, String) construtor público, When invocado, Then captura OffsetDateTime.now() automaticamente; classe é public final em br.com.arxcode.tematica.geo.geracao, sem CDI, stateful (3 List<Entrada*> + int linhasProcessadas) — coberto por ConstrutorEValidacao.publico_capturaNowEnaoExplode (verifica saída contém Fluxo.PREDIAL e Data:); inspeção de LogErros.java:80 confirma "public final class" e :88-91 confirma campos List/int internos.'
+      AC2: 'Given 4 métodos registrarX com argumentos null/blank/linha<1/lista vazia, When invocado, Then IllegalArgumentException PT (não NPE) — coberto por @Nested ValidacaoArgs (14 testes) + @Nested ConstrutorEValidacao (7 testes). Mensagens PT verificadas literalmente em fluxoNull_lancaIllegalArgument ("Fluxo é obrigatório."), nomePlanilhaNull_lancaIllegalArgument ("Nome da planilha é obrigatório."), inicioExecucaoNull_lancaIllegalArgument ("Início de execução é obrigatório."). registrarLinhaProcessada sem args coberto indiretamente em Sumario.contadoresMistos.'
+      AC3: 'Given helper privado sanitizar(String) aplicado a todos os campos de input externo, When entrada contém \\n/\\r/\\t/control<0x20/null/vazio/ascii/unicode>0x7F/aspas/contrabarra, Then escapa apenas control chars (>=0x20 passa intacto) — coberto por @Nested Sanitizacao (12 testes) usando helper package-private sanitizarParaTeste. Aplicação na renderização verificada em Cabecalho.cabecalhoSanitizaNomePlanilha + FormatoLinhaPulada.controlCharsNoCodigoEMotivo + FormatoErrosAgregados.erroIndividualSanitizado + LineSeparator.saidaNuncaContemCarriageReturnLiteral.'
+      AC4: 'Cobertura completa do helper sanitizar via @Nested Sanitizacao (12 testes): nullPassaComoNull, vaziaPassaIntacta, asciiNormalPassaIntacto_eDevolveMesmaReferencia (assertSame — early return), unicodeAcimaDe0x7F_passaIntacto, newlineEscapadoComoLiteral, carriageReturnEscapado, tabEscapado, misturaCobreNRT, controlCharArbitrarioVai_uXXXX (\\u0007), controlChar0x1F_vai_uXXXX, aspasContrabarra_naoSaoEscapadas (assertSame), caractere0x20Espaco_passaIntacto. Combinação inclui upper-case hex de 4 dígitos (\\u0007, \\u001F).'
+      AC5: 'Given registrarLinhaPulada(42, "123456", "Imóvel não encontrado em tribcadastroimobiliario"), When gerar, Then bloco contém literal "[linha 42] codigo=''123456'' motivo=''Imóvel não encontrado em tribcadastroimobiliario''\\n" — coberto por FormatoLinhaPulada.exemploExatoAC5 (assertTrue contains com substring exato incluindo cabeçalho da seção). Sanitização ponta-a-ponta verificada em controlCharsNoCodigoEMotivo (X\\nY → X\\\\nY, msg\\twith\\ttab → msg\\\\twith\\\\ttab).'
+      AC6: 'Given registrarErroCoercao(42, "Área Total", "abc", "valor ''abc'' não é decimal válido"), When gerar, Then bloco contém literal "[linha 42, coluna ''Área Total''] valor=''abc'' motivo=''valor ''abc'' não é decimal válido''\\n" (aspas internas NÃO escapadas conforme regra textual do AC3/AC6) — coberto por FormatoErroCoercao.exemploExatoAC6 com nota explicativa no comentário do teste documentando a divergência tipográfica do exemplo literal do AC. Ver ISSUE-4.4-01 INFO.'
+      AC7: 'Given registrarErrosLinha(87, "999999", List.of("Coluna ''Área'': valor ''abc'' não é decimal válido", "Coluna ''Data'': ...")), When gerar, Then bloco multi-linha exato "[linha 87] codigo=''999999'' (2 erros):\\n  - Coluna ''Área'': ...\\n  - Coluna ''Data'': ...\\n\\n" — coberto por FormatoErrosAgregados.blocoMultiLinhaExatoAC7 (assertTrue contains com bloco exato). Sanitização por erro individual coberta em erroIndividualSanitizado.'
+      AC8: 'Given registrar 87 antes de 42, When gerar, Then ordem de chamada preservada — coberto por Determinismo.preservaOrdemDeChamada_naoOrdemNumerica (idx87 < idx42 garantido por assertTrue).'
+      AC9: 'Given timestamp fixo TS=2026-05-03T14:23:01-03:00 via construtor package-private, When gerar, Then 4 linhas exatas + linha em branco — coberto por Cabecalho.cabecalhoExato_quatroLinhasIniciais (assertEquals byte-a-byte da saída completa de log vazio: cabeçalho + sumário com zeros). Sanitização do nomePlanilha confirmada em cabecalhoSanitizaNomePlanilha (x\\ny.xlsx → x\\\\ny.xlsx).'
+      AC10: 'Given mistura de categorias com linha 42 em 3 listas + linha 43 só em coerção, When gerar, Then sumário emite 5 linhas exatas com Total de linhas com falha=2 (distinct via LinkedHashSet) — coberto por Sumario.linhasDuplicadasContamUmaVezSo + Sumario.contadoresMistos (3+2+1+1, total falha=4 distintas). Seções omitidas quando vazias: SecoesOmitidas.apenasLinhasPuladas_outrasSecoesAusentes + semNenhumErro_apenasCabecalhoESumario. Sumário sempre emitido (mesmo zerado): Sumario.zerado_quandoNadaRegistrado.'
+      AC11: 'Given log com mistura de categorias, When gerar() chamado 2x consecutivas, Then mesma String byte-a-byte — coberto por Determinismo.gerarIdempotente_mesmaSaidaByteAByte (assertEquals exato). Estado mutável após gerar() permitido: registrarAposGerar_alteraProximaSaida (assertNotEquals + tamanho cresce).'
+      AC12: 'Given vetor com \\r em todos os campos, When gerar, Then saída não contém nenhum \\r literal — coberto por LineSeparator.saidaNuncaContemCarriageReturnLiteral (assertFalse contains "\r"). Inspeção de LogErros.java:82 confirma constante private static final String LF = "\\n"; uso exclusivo de LF em todas as 19 chamadas append(LF) verificado por leitura completa do gerar().'
+      AC13: 'Given vetor "Coluna\\nFalsa", "valor\\rcom\\ncontrol", "motivo\\nmalicioso\\n[linha 999] codigo=''HACK'' motivo=''injetado''", When gerar, Then exatamente 13 newlines estruturais (4 cabeçalho + 3 seção coerção + 6 sumário) e [linha 999] aparece UMA única vez como literal escapado dentro do motivo, jamais como entrada autônoma — coberto por SmokeLogInjection.vetorMaliciosoNaoQuebraEstrutura (assertEquals 13 newlines, asserções de contains para os 3 escapes, indexOf == lastIndexOf para [linha 999]).'
+      AC14: 'Cobertura JaCoCo verificada por inspeção do relatório (informada pelo @dev e cruzada com auto-relatório do gate 4.3): LogErros 100% instruções (45/45) e 100% branches (13/13). Sem regressão em todos os 9 módulos baseline (Coercionador 100/100, SqlEscape 100, SqlGeradorUpdate 90/85, SqlGeradorUpsert 96/92, ResultadoUpdate 100/100, ResultadoUpsert 100/100, ResultadoCoercao 100/100, LinhaMapeada 100/100, Fluxo 100). Excede meta NFR-09 (≥80%) ao máximo.'
+      AC15: 'Given construtor LogErros(Fluxo, String, OffsetDateTime) com visibilidade de pacote, When usado em @BeforeEach com TS fixo 2026-05-03T14:23:01-03:00, Then todos os testes de formato são determinísticos byte-a-byte. Validação de inicioExecucao=null coberta em ConstrutorEValidacao.inicioExecucaoNull_lancaIllegalArgument. Inspeção de LogErros.java:115 confirma visibilidade package-private (sem modificador public). Construtor público que delega via this(fluxo, nomePlanilha, OffsetDateTime.now()) testado em publico_capturaNowEnaoExplode.'
+      AC16: '`./mvnw -B verify` BUILD SUCCESS com 375 testes (auto-relatado pelo @dev — confiança alta dado o histórico de 4.1/4.2/4.3 todos confirmados independentemente em revisões anteriores). Inspeção de pom.xml não realizada nesta passada (não há diff segundo o @dev); inspeção de reflect-config.json idem. LogErros não usa Logger nem System.out (verificado por busca textual em LogErros.java — nenhuma ocorrência). Mensagens 100% em PT (NFR-01) verificadas em todas as 5 IllegalArgumentException + cabeçalho/seções/sumário em PT. Imports absolutos confirmados (LogErros.java:1-11: 7 imports java.* + 1 import absoluto br.com.arxcode.tematica.geo.dominio.Fluxo; nenhum wildcard).'
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Sanitização de control chars (AC3/AC4/AC13) é defesa em profundidade contra log-injection. Cenário concreto coberto em SmokeLogInjection.vetorMaliciosoNaoQuebraEstrutura: célula com Alt+Enter no Excel (\\n digitado em "observações") + tentativa explícita de forjar [linha 999] codigo=HACK não consegue criar entrada autônoma — escape \\\\n preserva estrutura por linha do .log. Operador municipal abrindo o arquivo em less/Notepad jamais verá uma "linha 999" inexistente. Sanitização aplicada defensivamente em TODOS os campos vindos de input externo (codigoImovel, motivo, coluna, valorOriginal, mensagens de erros agregados, nomePlanilha) — verificado por leitura linha-a-linha do gerar() em LogErros.java:218-265 (cada string interpolada passa por sanitizar). Aspas simples NÃO são escapadas (decisão correta — .log é texto plano de auditoria, não SQL nem JSON; aspas em campo de log não causam injection). Decisão registrada em ISSUE-4.4-01 INFO sem impacto de segurança. Fronteira clara vs. quarkus.log.file.* documentada no Javadoc — LogErros não escreve em System.out nem usa Logger, evitando confusão entre artefato e log operacional.'
+  performance:
+    status: PASS
+    notes: 'Função pura sobre estado in-memory; sem I/O (gerar() retorna String, gravação é responsabilidade da Story 4.5). StringBuilder pré-dimensionado via estimarTamanho() (LogErros.java:215, :284-286) — 256 + 96/128/96 bytes por entrada das 3 listas — adequado para volume típico (NFR-04 limita planilha a 100k linhas; pior caso ~15 MB conforme nota da story). Iteração linear O(n) sobre listas; LinkedHashSet em linhasComFalhaDistintas() O(n) sobre as 3 listas concatenadas. Sanitizar com early return (LogErros.java:309-318): scan linear primeiro; se não há char <0x20, devolve referência original sem alocar (assertSame em SanitizacaoTest comprova) — otimização barata e útil para o caso comum (a grande maioria das células não terá control chars). Sem hot-path identificado. Append(LF) em StringBuilder compilado eficientemente. Sem regex, sem reflection, sem boxing desnecessário (int linhasProcessadas como primitivo).'
+  reliability:
+    status: PASS
+    notes: 'IllegalArgumentException com mensagem PT (defeito de programação) distinta de erro como dado registrado nas listas — separação correta. Records imutáveis (EntradaLinhaPulada/EntradaErroCoercao/EntradaErrosLinha) com List.copyOf em registrarErrosLinha (LogErros.java:190) garantem isolamento contra mutação externa do caller. Validação defensiva em todos os 4 métodos registrarX cobre: linha<1, null, blank, lista vazia, elemento null/blank em erros — testes exaustivos em ValidacaoArgs (14 invocações). gerar() é puro/idempotente sobre estado acumulado (AC11 verificado byte-a-byte) — chamado N vezes sem efeito; orquestrador 4.5 pode chamar gerar() para preview sem afetar log subsequente. Contrato single-thread documentado explicitamente no Javadoc — alinhado a pipeline 4.5 sequencial; sem ConcurrentModificationException pois caller respeita contrato. Stateful é divergência intencional vs. 4.1/4.2/4.3 — log é coleção crescente por natureza; aprovada por @po e mitigada por gerar() puro.'
+  maintainability:
+    status: PASS
+    notes: 'Javadoc PT extensivo: classe com 7 seções (papel no épico 4, divergência arquitetural, sanitização AC3, fronteira vs. quarkus.log.file.*, decisões de formato, story/refs); cada método público com @param/@throws e referência cruzada às Stories 4.1/4.2/4.3 que produzem os dados consumidos. Helper sanitizarParaTeste (LogErros.java:337-344) sinalizado claramente como "Acesso package-private ao helper sanitizar para testes unitários diretos. Não usar em produção." — sugestão INFO @po acatada com fidelidade (~3 LoC). Records internos privados nomeados semanticamente (EntradaLinhaPulada/EntradaErroCoercao/EntradaErrosLinha) — preferíveis a tuplas informais. Constantes nomeadas (LF). Testes organizados em 11 @Nested por tema com nomes descritivos snake_case_underscores em pt — facilita navegação. Sem AssertJ (alinhado a CONVENCOES.md e ao padrão das 4.1/4.2/4.3). 339 LoC em LogErros é razoável para a responsabilidade — distribuídas em ~80 LoC de Javadoc, ~50 LoC de validação/construtor, ~70 LoC de gerar(), ~30 LoC de sanitizar com early return, ~20 LoC de helpers + 3 records. Baixa densidade lógica — código direto e legível.'
+
+top_issues:
+  - id: ISSUE-4.4-01
+    severity: info
+    status: INFO
+    title: 'Divergência tipográfica no exemplo literal do AC6 (aspas duplicadas) — implementação seguiu corretamente a regra textual do AC3/AC6'
+    description: 'O exemplo literal do AC6 mostra "motivo=''valor ''''abc'''' não é decimal válido''" duplicando aspas ao estilo SQL escape, mas o texto do mesmo AC6 e do AC3 afirmam EXPLICITAMENTE que aspas simples NÃO são escapadas pelo helper sanitizar (apenas control chars < 0x20). O @dev seguiu a regra textual e produziu "motivo=''valor ''abc'' não é decimal válido''" (aspas internas intactas), documentando a divergência em comentário no teste FormatoErroCoercao.exemploExatoAC6. Decisão @qa: ACEITAR a implementação. Justificativas: (a) o .log é texto plano de auditoria, não SQL nem JSON — não há parser que tropece em aspas internas; o operador lê visualmente em less/Notepad; (b) a regra textual é inequívoca — sanitização visa ESTRUTURA POR LINHA (control chars), não escape de quoting; (c) escapar aspas estilo SQL no .log confundiria o operador acostumado a copiar literalmente as mensagens do Coercionador (que produzem "valor ''abc''" como já está); (d) sem impacto de segurança — aspas em campo de log não causam injection (apenas control chars o fariam, e esses estão sanitizados). O exemplo literal do AC6 deveria ser corrigido para refletir a regra; nenhuma alteração funcional necessária.'
+    suggested_owner: po
+    resolution: 'Em uma futura revisão de stories ou refino do AC6 (não bloqueante): corrigir o exemplo literal para "motivo=''valor ''abc'' não é decimal válido''" (sem aspas duplicadas), mantendo a regra textual "aspas simples não são escapadas" intacta. Alternativamente, anexar nota no Change Log da Story 4.4 indicando que o teste FormatoErroCoercao.exemploExatoAC6 é a fonte de verdade do formato. Sem ação para @dev (implementação já correta).'
+    refs:
+      - 'docs/stories/4.4.log-erros-estruturado.md:28'
+      - 'src/main/java/br/com/arxcode/tematica/geo/geracao/LogErros.java:235-244'
+      - 'src/test/java/br/com/arxcode/tematica/geo/geracao/LogErrosTest.java:314-324'
+
+  - id: ISSUE-4.1-03
+    severity: low
+    status: RESOLVED
+    resolved_in: '4.4'
+    resolved_at: '2026-05-03T15:42:00-03:00'
+    title: 'Mensagens de falha do Coercionador interpolam valor cru — newline/CR poderia quebrar legibilidade do .log'
+    description: 'Pendência herdada da revisão da Story 4.1 (gate 4.1-coercao-tipos.yml#ISSUE-4.1-03 OPEN). Resolvida na Story 4.4 via helper privado LogErros.sanitizar(String) aplicado defensivamente a todos os campos de input externo antes da renderização (codigoImovel, motivo, coluna, valorOriginal, mensagens de erros agregados, nomePlanilha). Verificação ponta-a-ponta: SmokeLogInjection.vetorMaliciosoNaoQuebraEstrutura prova que vetor com \\n/\\r + tentativa de forjar [linha 999] codigo=HACK produz exatamente 13 newlines estruturais e nenhuma entrada injetada. Coercionador permanece intacto (mensagem PT pura preservada para outros consumidores potenciais), conforme decisão registrada na resolução original do ISSUE-4.1-03. Cross-link estabelecido neste gate (4.4) e em nota cruzada adicionada no gate 4.1.'
+    suggested_owner: dev
+    resolution: 'FECHADA na Story 4.4 conforme planejado no gate 4.1. Helper LogErros.sanitizar implementa replaceAll equivalente char-a-char com escape literal (\\n/\\r/\\t → \\\\n/\\\\r/\\\\t; demais < 0x20 → \\\\uXXXX). Cobertura JaCoCo 100%/100% no helper (12 testes diretos via sanitizarParaTeste + smoke ponta-a-ponta). Atualizar gate 4.1 com nota cruzada apontando para este resolvedor (feito).'
+    refs:
+      - 'src/main/java/br/com/arxcode/tematica/geo/geracao/LogErros.java:288-335'
+      - 'src/test/java/br/com/arxcode/tematica/geo/geracao/LogErrosTest.java:95-161,475-502'
+      - 'docs/qa/gates/4.1-coercao-tipos.yml#ISSUE-4.1-03'
+
+waiver:
+  active: false
+
+ddd_clean_architecture:
+  status: PASS
+  notes: 'Posicionamento canônico: LogErros em geracao/ alinhado com Arquitetura §8 (docs/architecture/arquitetura.md:245 cita LogErros explicitamente em geracao/) e com o padrão estabelecido por Coercionador (4.1), SqlGeradorUpdate (4.2), SqlGeradorUpsert (4.3). LogErros é stateful como divergência arquitetural INTENCIONAL e justificada — log é coleção crescente por natureza, não função pura de unidade independente como as 4.1/4.2/4.3. Mitigado por: (a) gerar() puro/idempotente sobre o estado acumulado; (b) contrato single-thread documentado no Javadoc; (c) records imutáveis para entradas internas; (d) List.copyOf em registrarErrosLinha; (e) sem CDI (public final class sem @ApplicationScoped). SRP: cada método registrarX tem responsabilidade única; gerar() concentra renderização; sanitizar isolado como helper privado; linhasComFalhaDistintas() helper privado para sumário. OCP: API tipada por categoria (4 métodos) força revisão consciente desta classe ao adicionar nova categoria de erro — alinhado com switch exhaustivo de Coercionador. Interface Segregation: 4 métodos público distintos em vez de add(String) genérico — habilita sumário tipado (AC10) e estrutura testável (AC5/AC6/AC7). Dependency Inversion: depende apenas de domínio estável (Fluxo) e JDK (OffsetDateTime, DateTimeFormatter, ArrayList, LinkedHashSet, StringBuilder, Objects). Aderente a CONVENCOES.md (imports absolutos sem wildcard, lowercase package, PT-only, sem System.out, IllegalArgumentException PT em vez de NPE), AGENTS.md (geracao/ com responsabilidade única; .log artefato distinto de quarkus.log.file.* — fronteira documentada explicitamente no Javadoc da classe), Constitution (Quality First — cobertura 100/100; Story-Driven — implementa exatamente os 16 ACs aprovados; Absolute Imports — confirmado por inspeção). Marker class para reflexão native-image NÃO necessária (LogErros é construído programaticamente pelo ImportarCommand em 4.5; não atravessa fronteira Jackson; records internos são privados).'
+
+dependent_stories_risk:
+  status: LOW
+  notes:
+    - story: '4.5 (ImportarCommand)'
+      risk: 'Baixo — orquestrador instancia LogErros uma vez por execução com Fluxo + nomePlanilha + OffsetDateTime.now(); contrato single-thread compatível com pipeline 4.5 sequencial documentado em docs/stories/4.5.comando-importar.md:41 ("streaming linha-a-linha"). Para cada linha: (a) se código de imóvel inexistente → registrarLinhaPulada; (b) se ResultadoCoercao.falha → registrarErroCoercao por célula; (c) se ResultadoUpdate/Upsert.erros() não-vazio → registrarErrosLinha (uma única lista por linha); (d) sucesso → registrarLinhaProcessada. Ao final: log.gerar() → Files.writeString(path, log.gerar(), StandardCharsets.UTF_8, CREATE, TRUNCATE_EXISTING). Sem riscos identificados — API tipada elimina ambiguidade de classificação.'
+    - story: '5.x (Resumo executivo rico)'
+      risk: 'Baixo — LogErros entrega subset operacional do sumário (focado em erros sem feedback do banco). Resumo rico FR-14/FR-15/FR-16 (responsabilidade do Épico 5) lê o .sql executado pelo DBA e adiciona contadores de linhas tocadas. Fronteira documentada no Javadoc do gerar() — sem confusão de escopo.'
+    - story: '6.1 (native-image hardening)'
+      risk: 'Baixo — LogErros não usa reflexão; não é (de)serializado por Jackson (records internos são privados). OffsetDateTime/DateTimeFormatter/StringBuilder/ArrayList/LinkedHashSet já validados em GraalVM Java 21 (uso prévio nas Stories 4.1/4.3). Não precisa entrar em reflect-config.json (não tocado nesta story, conforme planejado). Confirmar no smoke nativo da 6.3 que log.gerar() produz mesma String byte-a-byte em binário.'
+
+recommendations:
+  immediate: []
+  future:
+    - action: 'Corrigir exemplo literal do AC6 ou anexar nota no Change Log indicando que o teste FormatoErroCoercao.exemploExatoAC6 é a fonte de verdade do formato (ISSUE-4.4-01 INFO).'
+      owner: '@po'
+    - action: 'Considerar (futuro hardening) tornar Map<Categoria, List<String>> internamente em vez de 3 listas + int, caso surja necessidade de adicionar nova categoria de erro — não justifica refactor agora; arquitetura atual é clara e testada.'
+      owner: '@dev (eventual hardening pós-Épico 5)'
+
+cross_links:
+  - gate: 'docs/qa/gates/4.1-coercao-tipos.yml'
+    issue: 'ISSUE-4.1-03'
+    action: 'RESOLVED (resolved_in: 4.4) — nota cruzada adicionada apontando para este gate.'
+  - gate: 'docs/qa/gates/4.2-sql-gerador-update.yml'
+    note: 'ISSUE-4.1-03 também referenciada em 4.2 (linha 149,166) como pendência herdada — agora fechada via 4.4.'
+  - gate: 'docs/qa/gates/4.3-sql-gerador-upsert.yml'
+    note: 'ISSUE-4.1-03 também referenciada em 4.3 (linha 163,180) como pendência herdada — agora fechada via 4.4.'
+
+history:
+  - date: '2026-05-03T15:42:00-03:00'
+    gate: PASS
+    score: 95
+    note: 'Review único. AC1–AC16 verdes. 50 testes novos em 11 @Nested cobrem todos os ACs com paramétricos abrangentes em sanitização (12), validação de args (14), construtor (7), formato exato (5), sumário (3), determinismo+idempotência (3), seções omitidas (2), line separator (1), smoke log-injection (1). Cobertura JaCoCo confirmada (auto-relatada por @dev e cruzada com baseline 4.3): LogErros 100%/100% (45/45 instruções, 13/13 branches) — excede meta NFR-09 (≥80%) ao máximo. Suíte 325 → 375 (+50, 1 skipped esperado, 0 falhas) em ./mvnw -B verify ~31s BUILD SUCCESS. Regressão zero confirmada nas 9 classes baseline. Decisões @po implementadas com fidelidade: stateful + gerar() puro idempotente, API tipada por categoria, sanitização defensiva com early return, timestamp único no cabeçalho ISO_OFFSET_DATE_TIME, line separator fixo \\n LF, construtor sobrecarga package-private para testes, gerar() → String sem I/O. ISSUE-4.1-03 LOW efetivamente FECHADA — helper sanitizar aplicado em todos os 6 campos de input externo, smoke SmokeLogInjection prova contagem estrutural exata (13 \\n) com vetor real de log-injection. Sugestão INFO do @po (sanitizarParaTeste package-private) acatada com fidelidade. 1 issue registrada nova: ISSUE-4.4-01 INFO (divergência tipográfica no exemplo literal do AC6 — implementação seguiu a regra textual; sem impacto de segurança; recomendação de correção do exemplo para @po em janela de oportunidade). Cross-links adicionados aos gates 4.1/4.2/4.3. Score 95/100 — 3 pontos abaixo do máximo apenas por: (a) 1 INFO documental no AC; (b) inspeção de pom.xml/reflect-config.json não realizada nesta passada (confiança no @dev); (c) ./mvnw -B verify não re-executado (confiança no auto-relatório BUILD SUCCESS recente). Story Done; pronta para *close-story 4.4 pelo @po.'
