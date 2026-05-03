@@ -10,6 +10,9 @@ import br.com.arxcode.tematica.geo.geracao.Coercionador;
 import br.com.arxcode.tematica.geo.geracao.LogErros;
 import br.com.arxcode.tematica.geo.geracao.ResultadoUpdate;
 import br.com.arxcode.tematica.geo.geracao.ResultadoUpsert;
+import br.com.arxcode.tematica.geo.geracao.ResumoExecucao;
+import br.com.arxcode.tematica.geo.geracao.ResumoRenderer;
+import br.com.arxcode.tematica.geo.geracao.ResumoSnapshot;
 import br.com.arxcode.tematica.geo.geracao.SqlGeradorUpdate;
 import br.com.arxcode.tematica.geo.geracao.SqlGeradorUpsert;
 import br.com.arxcode.tematica.geo.mapeamento.ColunaDinamica;
@@ -70,6 +73,7 @@ import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
  * {@code aise.<fluxo.tabelaRespostas()>}).
  *
  * <p>Story: 4.5 — Comando {@code importar}. Fecha Marco M2 (parcial).
+ * Story 5.1 — integra {@link ResumoExecucao} para acumulação de contadores.
  */
 // @Dependent: evita client proxy do CDI, necessário para que picocli possa
 // injetar @CommandLine.Spec diretamente na instância real (não num wrapper).
@@ -212,9 +216,8 @@ public class ImportarCommand implements Callable<Integer> {
                 : arquivo.toString();
 
         LogErros logErros = new LogErros(fluxo, nomePlanilha);
+        ResumoExecucao resumo = new ResumoExecucao(fluxo, nomePlanilha);
         StringBuilder sqlBuffer = new StringBuilder();
-        // array wrapper para mutabilidade em lambda (effectively-final — AC13/Dev Notes)
-        boolean[] houveErros = {false};
         // linha 1 = cabeçalho; dados começam em 2 (AC10)
         int[] linhaExcel = {1};
 
@@ -225,9 +228,10 @@ public class ImportarCommand implements Callable<Integer> {
                 .append(" | gerado: ").append(inicio.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
                 .append("\n");
 
+        resumo.iniciar();
         try (ExcelSessao sessao = ExcelLeitor.abrir(arquivo)) {
             sessao.linhas().forEach(row ->
-                processarLinha(row, linhaExcel, mapeamentoObj, logErros, sqlBuffer, houveErros));
+                processarLinha(row, linhaExcel, mapeamentoObj, logErros, sqlBuffer, resumo));
         }
 
         // Gravar artefatos (AC11/AC12) ──────────────────────────────────────────
@@ -237,12 +241,24 @@ public class ImportarCommand implements Callable<Integer> {
         Path arquivoSql = dirSaida.resolve(base + ".sql");
         Path arquivoLog = dirSaida.resolve(base + ".log");
 
+        // finalizar antes de escrever o log: snapshot precisa existir para compor o conteúdo
+        resumo.finalizar();
+        ResumoSnapshot snapshot = resumo.toResumoImutavel(arquivoSql, arquivoLog);
+
+        String ascii   = ResumoRenderer.renderizarAscii(snapshot);
+        String jsonLine = ResumoRenderer.renderizarJsonLine(snapshot);
+
         try {
             Files.createDirectories(dirSaida);
             Files.writeString(arquivoSql, sqlBuffer.toString(), StandardCharsets.UTF_8,
                     CREATE, TRUNCATE_EXISTING);
-            Files.writeString(arquivoLog, logErros.gerar(), StandardCharsets.UTF_8,
-                    CREATE, TRUNCATE_EXISTING);
+            Files.writeString(arquivoLog,
+                    logErros.gerar()
+                            + System.lineSeparator()
+                            + ascii
+                            + jsonLine
+                            + System.lineSeparator(),
+                    StandardCharsets.UTF_8, CREATE, TRUNCATE_EXISTING);
         } catch (IOException e) {
             err.println("✗ Falha ao gravar artefatos: " + e.getMessage());
             return 1;
@@ -250,12 +266,11 @@ public class ImportarCommand implements Callable<Integer> {
 
         LOG.infof("Artefatos gravados: sql=%s, log=%s", arquivoSql, arquivoLog);
 
-        // Saída ao terminal (AC14) ─────────────────────────────────────────────
-        out.println("✓ Artefatos gerados:");
-        out.println("  SQL: " + arquivoSql.toAbsolutePath());
-        out.println("  LOG: " + arquivoLog.toAbsolutePath());
+        // Saída ao terminal (AC3/Story 5.2) ───────────────────────────────────
+        out.print(ascii);
+        out.flush();
 
-        if (houveErros[0]) {
+        if (snapshot.erro() > 0) {
             err.println("⚠ Execução concluída com erros — consulte o .log para detalhes.");
             return 2;
         }
@@ -268,30 +283,40 @@ public class ImportarCommand implements Callable<Integer> {
      *
      * <p>{@code linhaExcel[0]} é incrementado no início deste método (AC10), antes de
      * qualquer processamento, garantindo numeração correta mesmo em linhas puladas.
-     * {@code houveErros[0]} é setado para {@code true} em qualquer erro ou linha pulada.
+     *
+     * <p>{@code resumo.incrementarLido()} é a primeira instrução; todos os branches
+     * encerram com {@code resumo.registrarSucesso()} ou {@code resumo.registrarErro()}
+     * (Story 5.1 — AC8–AC12). O exit code é determinado em {@code call()} via
+     * {@code snapshot.erro() > 0} (Story 5.2 — AC4).
+     *
+     * <p><strong>Suposição AC11:</strong> {@code ResultadoUpsert.sqls()} sempre contém
+     * um número par de statements (alternância DELETE+INSERT); {@code sqls.size() / 2}
+     * é o número de pares gerados.
      *
      * @param row         linha do Excel como {@code Map<header, valor-bruto>}
      * @param linhaExcel  array de 1 elemento com o número da linha atual (workaround effectively-final)
      * @param mapeamento  mapeamento carregado do {@code mapping.json}
      * @param logErros    acumulador de erros
      * @param sqlBuffer   buffer do arquivo {@code .sql}
-     * @param houveErros  array de 1 elemento de flag de erro (workaround effectively-final)
+     * @param resumo      acumulador de contadores de execução (Story 5.1)
      */
     private void processarLinha(Map<String, String> row,
                                  int[] linhaExcel,
                                  Mapeamento mapeamento,
                                  LogErros logErros,
                                  StringBuilder sqlBuffer,
-                                 boolean[] houveErros) {
+                                 ResumoExecucao resumo) {
         linhaExcel[0]++;
         int numLinha = linhaExcel[0];
+
+        resumo.incrementarLido();
 
         // Extrair código do imóvel (AC6) ──────────────────────────────────────
         String codigoImovel = row.getOrDefault(mapeamento.colunaCodigoImovel(), "").trim();
         if (codigoImovel.isEmpty()) {
             logErros.registrarLinhaPulada(numLinha, "(vazio)",
                     "Código do imóvel vazio ou ausente na coluna '" + mapeamento.colunaCodigoImovel() + "'");
-            houveErros[0] = true;
+            resumo.registrarErro();
             return;
         }
 
@@ -299,7 +324,7 @@ public class ImportarCommand implements Callable<Integer> {
         if (!existenciaRepository.existeImovel(codigoImovel, fluxo)) {
             logErros.registrarLinhaPulada(numLinha, codigoImovel,
                     "Imóvel não encontrado em " + fluxo.tabelaPrincipal());
-            houveErros[0] = true;
+            resumo.registrarErro();
             return;
         }
 
@@ -323,6 +348,7 @@ public class ImportarCommand implements Callable<Integer> {
         ResultadoUpdate resultadoUpdate = GERADOR_UPDATE.gerar(linhaMapeada, mapeamento, fluxo, COERCIONADOR);
         if (resultadoUpdate.ok()) {
             sqlBuffer.append(resultadoUpdate.sql()).append("\n");
+            resumo.registrarUpdatePrincipal();
         } else {
             logErros.registrarErrosLinha(numLinha, codigoImovel, resultadoUpdate.erros());
             houveErroNaLinha = true;
@@ -334,17 +360,23 @@ public class ImportarCommand implements Callable<Integer> {
             for (String sql : resultadoUpsert.sqls()) {
                 sqlBuffer.append(sql).append("\n");
             }
+            // Cada par DELETE+INSERT = 1 resposta gerada (suposição: sqls.size() sempre par)
+            int nRespostas = resultadoUpsert.sqls().size() / 2;
+            for (int i = 0; i < nRespostas; i++) {
+                resumo.registrarRespostaInserida();
+            }
         } else {
             // erros de UPDATE e UPSERT registrados em chamadas separadas (AC8 Dev Notes)
             logErros.registrarErrosLinha(numLinha, codigoImovel, resultadoUpsert.erros());
             houveErroNaLinha = true;
         }
 
-        // Contagem de sucesso (AC9) ─────────────────────────────────────────────
+        // Contagem de sucesso/erro (AC9/AC12) ──────────────────────────────────
         if (!houveErroNaLinha) {
             logErros.registrarLinhaProcessada();
+            resumo.registrarSucesso();
         } else {
-            houveErros[0] = true;
+            resumo.registrarErro();
         }
     }
 }
