@@ -185,10 +185,10 @@ public class MapearCommand implements Callable<Integer> {
                 candidatos.size());
             for (String header : candidatos) {
                 ColunaDinamica cd = mapeamentoExistente.get().colunasDinamicas().get(header);
-                long nullCount = cd.alternativas().values().stream()
-                    .filter(v -> v == null).count();
-                LOG.debugf("Candidato incremental: header=%s, idcampo=%d, alternativas null=%d",
-                    header, cd.idcampo(), nullCount);
+                long nullCount = cd.alternativas() == null ? 0
+                    : cd.alternativas().values().stream().filter(v -> v == null).count();
+                LOG.debugf("Candidato incremental: header=%s, idcampo=%d, alternativas null=%d (alternativas=%s)",
+                    header, cd.idcampo(), nullCount, cd.alternativas() == null ? "ausente" : nullCount + " sem match");
             }
         }
 
@@ -308,7 +308,8 @@ public class MapearCommand implements Callable<Integer> {
      * (T2) Identifica candidatos para resolução incremental de alternativas.
      * Candidato é qualquer item de {@code colunasDinamicas} que satisfaz:
      * (a) status == PENDENTE; (b) idcampo != null; (c) tipo == MULTIPLA_ESCOLHA;
-     * (d) alternativas != null e ao menos uma entrada tem valor null.
+     * (d) alternativas == null (campo configurado manualmente sem alternativas)
+     *     OU alternativas != null e ao menos uma entrada tem valor null.
      *
      * @param existente mapeamento pré-existente carregado do disco
      * @return lista de headers candidatos
@@ -320,8 +321,8 @@ public class MapearCommand implements Callable<Integer> {
             if (cd.status() == StatusMapeamento.PENDENTE
                     && cd.idcampo() != null
                     && cd.tipo() == Tipo.MULTIPLA_ESCOLHA
-                    && cd.alternativas() != null
-                    && cd.alternativas().values().stream().anyMatch(v -> v == null)) {
+                    && (cd.alternativas() == null
+                        || cd.alternativas().values().stream().anyMatch(v -> v == null))) {
                 candidatos.add(e.getKey());
             }
         }

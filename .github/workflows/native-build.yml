@@ -96,7 +96,9 @@ jobs:
           path: dist/
 
       - name: Tornar binário executável
-        run: chmod +x dist/importacao-geo-linux-x64
+        run: |
+          mv dist/importacao-geo-1.0.0-SNAPSHOT-runner dist/importacao-geo-linux-x64
+          chmod +x dist/importacao-geo-linux-x64
 
       - name: Executar suite E2E
         run: bash scripts/e2e.sh dist/importacao-geo-linux-x64
@@ -132,6 +134,7 @@ jobs:
       - name: Preparar assets
         shell: bash
         run: |
+          mv dist/importacao-geo-1.0.0-SNAPSHOT-runner dist/importacao-geo-linux-x64
           chmod +x dist/importacao-geo-linux-x64
           # O artifact Windows já tem o nome correto importacao-geo-windows-x64.exe
           ls -lh dist/
