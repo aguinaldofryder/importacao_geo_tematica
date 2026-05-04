@@ -1,0 +1,80 @@
+name: Native Build
+
+# Dispara em push para main e em qualquer tag de release.
+# NÃO dispara em pull_request — build nativo é lento (~10-12 min com cache quente,
+# ~20-25 min sem cache). PRs usam ci.yml (JVM, ./mvnw -B verify).
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+
+jobs:
+  native-build:
+    name: Native (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      # Permite que um job continue mesmo que o outro falhe — útil para diagnosticar
+      # falhas específicas de OS sem perder o resultado do outro runner.
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            binary: target/importacao-geo-1.0.0-SNAPSHOT-runner
+            artifact: importacao-geo-linux-x64
+          - os: windows-latest
+            binary: target/importacao-geo-1.0.0-SNAPSHOT-runner.exe
+            artifact: importacao-geo-windows-x64.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # GraalVM CE 21 — mesma distribuição do ambiente de dev local (Story 6.1).
+      # cache: 'maven' habilita cache de ~/.m2 nativo do setup-graalvm; não adicionar
+      # actions/cache separado para ~/.m2 (conflito de chave).
+      # Tempo esperado com cache quente: ~10-12 min por job (AC6).
+      - name: Configurar GraalVM CE 21
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm-community'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: 'maven'
+          native-image-job-reports: 'true'
+
+      # shell: bash garante comportamento idêntico em Linux e Windows (Git Bash).
+      - name: Compilar binário nativo
+        shell: bash
+        run: ./mvnw package -Pnative -DskipTests -B
+
+      # ── Verificação de tamanho (AC5: binário deve ser ≤ 100 MB / 104857600 bytes) ──
+
+      - name: Verificar tamanho do binário (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          SIZE=$(wc -c < "${{ matrix.binary }}")
+          echo "Tamanho: ${SIZE} bytes"
+          [ "$SIZE" -le 104857600 ] || { echo "ERRO: binário excede 100 MB (${SIZE} bytes)"; exit 1; }
+
+      - name: Verificar tamanho do binário (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $size = (Get-Item "${{ matrix.binary }}").length
+          Write-Host "Tamanho: $size bytes"
+          if ($size -gt 104857600) { throw "ERRO: binário excede 100 MB ($size bytes)" }
+
+      # ── Smoke test (AC7: --help deve retornar exit 0) ──────────────────────────────
+
+      - name: Smoke test
+        shell: bash
+        run: ./${{ matrix.binary }} --help
+
+      # ── Upload do artefato (AC4: retenção de 30 dias) ──────────────────────────────
+
+      - name: Publicar artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.binary }}
+          retention-days: 30

@@ -7,12 +7,17 @@ Guia para compilar e manter o binário nativo do `importacao-geo` com GraalVM `n
 ### GraalVM JDK 21
 
 O build nativo exige GraalVM JDK 21 com o componente `native-image` incluído.
-O ambiente de dev usa:
+
+**Versão de referência (dev local e CI):**
 
 ```
-GraalVM CE 21.0.2+13.1
-Caminho: ~/.local/lib/graalvm-community-openjdk-21.0.2+13.1
+GraalVM CE 21 (distribution: graalvm-community)
+Dev local: GraalVM CE 21.0.2+13.1 — ~/.local/lib/graalvm-community-openjdk-21.0.2+13.1
+CI (GitHub Actions): graalvm/setup-graalvm@v1, java-version: '21', distribution: 'graalvm-community'
 ```
+
+> Manter a mesma distribuição (`graalvm-community`) em dev e CI evita divergências de suporte
+> a reflexão entre ambientes (Story 6.2).
 
 Opções de instalação:
 
