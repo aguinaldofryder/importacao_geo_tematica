@@ -57,6 +57,23 @@
             <artifactId>fastexcel-reader</artifactId>
             <version>0.18.4</version>
         </dependency>
+        <!-- Dependências opcionais do commons-compress necessárias para build nativo GraalVM (Story 6.1).
+             O fastexcel usa commons-compress para leitura de ZIP (.xlsx); ZipFile.getInputStream
+             referencia construtores de todos os compressores suportados durante o parsing do
+             native-image, mesmo que nenhum deles seja usado em tempo de execução para .xlsx. -->
+        <!-- XZ (pure Java — sem inicialização JNI): resolve ZXCompressorInputStream no parsing -->
+        <dependency>
+            <groupId>org.tukaani</groupId>
+            <artifactId>xz</artifactId>
+            <version>1.10</version>
+        </dependency>
+        <!-- Zstandard (JNI): resolve ZstdInputStream no parsing; inicialização JNI é diferida
+             para runtime via quarkus.native.additional-build-args no perfil native -->
+        <dependency>
+            <groupId>com.github.luben</groupId>
+            <artifactId>zstd-jni</artifactId>
+            <version>1.5.7-3</version>
+        </dependency>
 
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -167,6 +184,11 @@
                 <quarkus.package.jar.enabled>false</quarkus.package.jar.enabled>
                 <skipITs>false</skipITs>
                 <quarkus.native.enabled>true</quarkus.native.enabled>
+                <!-- zstd-jni carrega biblioteca nativa via System.load() no inicializador estático.
+                     Deferir para runtime evita falha de inicialização no build do native-image.
+                     O native de produção nunca descomprime Zstandard (apenas ZIP/XLSX), portanto
+                     este erro jamais ocorre em runtime. Story 6.1. -->
+                <quarkus.native.additional-build-args>--initialize-at-run-time=com.github.luben.zstd</quarkus.native.additional-build-args>
             </properties>
         </profile>
     </profiles>
