@@ -185,10 +185,37 @@ public class AutoMapeador {
      * Se algum valor não for resolvido (match múltiplo ou nenhum), o status é
      * rebaixado para {@link StatusMapeamento#PENDENTE}, mas {@code idcampo} e
      * {@code tipo} permanecem preenchidos para auxiliar edição manual.
+     *
+     * <p>Visibilidade {@code package-private} para permitir reuso no modo
+     * incremental do {@code MapearCommand} (Story 3.6 T4) sem duplicação de lógica.
      */
-    private ColunaDinamica popularAlternativas(String header, Campo campo, EntradaAutoMapeamento entrada) {
+    ColunaDinamica popularAlternativas(String header, Campo campo, EntradaAutoMapeamento entrada) {
         Set<String> valoresDistintos = entrada.valoresDistintosPorHeader().apply(header);
         List<Alternativa> alternativasCampo = entrada.alternativasPorCampo().apply(campo.id());
+        return popularAlternativasComListas(campo.id(), campo.tipo(), valoresDistintos, alternativasCampo);
+    }
+
+    /**
+     * Resolve alternativas a partir de listas explícitas de valores distintos e
+     * alternativas do banco. Usado no modo incremental (Story 3.6 T4) para
+     * candidatos com {@code idcampo} já preenchido.
+     */
+    public ColunaDinamica popularAlternativasIncremental(
+            Integer idcampo,
+            Set<String> valoresDistintos,
+            List<Alternativa> alternativasCampo) {
+        return popularAlternativasComListas(
+                idcampo == null ? 0L : idcampo.longValue(),
+                Tipo.MULTIPLA_ESCOLHA,
+                valoresDistintos,
+                alternativasCampo);
+    }
+
+    private ColunaDinamica popularAlternativasComListas(
+            long idcampoLong,
+            Tipo tipo,
+            Set<String> valoresDistintos,
+            List<Alternativa> alternativasCampo) {
 
         // Indexa alternativas por descrição normalizada.
         Map<String, List<Alternativa>> alternativasPorDescricaoNormalizada =
@@ -216,13 +243,13 @@ public class AutoMapeador {
             }
         }
 
-        Integer idcampoBoxed = Math.toIntExact(campo.id());
+        Integer idcampoBoxed = Math.toIntExact(idcampoLong);
 
         if (semMapeamento == 0) {
             return new ColunaDinamica(
                     StatusMapeamento.MAPEADO,
                     idcampoBoxed,
-                    campo.tipo(),
+                    tipo,
                     Collections.unmodifiableMap(alternativasMap),
                     null,
                     null);
@@ -230,7 +257,7 @@ public class AutoMapeador {
         return new ColunaDinamica(
                 StatusMapeamento.PENDENTE,
                 idcampoBoxed,
-                campo.tipo(),
+                tipo,
                 Collections.unmodifiableMap(alternativasMap),
                 semMapeamento + " de " + totalConsiderados + " alternativas sem mapeamento",
                 null);

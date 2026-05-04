@@ -14,12 +14,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
@@ -29,6 +32,7 @@ import br.com.arxcode.tematica.geo.catalogo.CampoRepository;
 import br.com.arxcode.tematica.geo.config.CodigoImovelConfig;
 import br.com.arxcode.tematica.geo.config.ColunasFixasConfig;
 import br.com.arxcode.tematica.geo.config.ImportacaoConfig;
+import br.com.arxcode.tematica.geo.dominio.Alternativa;
 import br.com.arxcode.tematica.geo.dominio.Campo;
 import br.com.arxcode.tematica.geo.dominio.Fluxo;
 import br.com.arxcode.tematica.geo.dominio.Tipo;
@@ -158,18 +162,46 @@ public class MapearCommand implements Callable<Integer> {
 
         LOG.infof("Iniciando mapeamento: arquivo=%s fluxo=%s saida=%s", arquivo, fluxo, saida);
 
+        // (T1) Leitura do mapping.json pré-existente — ANTES de abrir a planilha (RISCO-1)
+        Optional<Mapeamento> mapeamentoExistente = Optional.empty();
+        if (Files.exists(saida)) {
+            try {
+                mapeamentoExistente = Optional.of(mapeamentoStore.carregar(saida));
+                LOG.infof("mapping.json pré-existente carregado: %s", saida);
+            } catch (Exception ex) {
+                err.println("⚠ Aviso: mapping.json existente não pôde ser lido, iniciando mapeamento do zero: "
+                    + (ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage()));
+                LOG.warnf("mapping.json existente inválido, continuando sem modo incremental: %s", ex.getMessage());
+            }
+        }
+
+        // (T2) Identificação de candidatos para resolução incremental (RISCO-1)
+        List<String> candidatos = mapeamentoExistente
+            .map(this::identificarCandidatos)
+            .orElse(List.of());
+
+        if (mapeamentoExistente.isPresent()) {
+            LOG.infof("Modo incremental ativado: %d candidato(s) para resolução de alternativas encontrado(s) em mapping.json existente",
+                candidatos.size());
+            for (String header : candidatos) {
+                ColunaDinamica cd = mapeamentoExistente.get().colunasDinamicas().get(header);
+                long nullCount = cd.alternativas().values().stream()
+                    .filter(v -> v == null).count();
+                LOG.debugf("Candidato incremental: header=%s, idcampo=%d, alternativas null=%d",
+                    header, cd.idcampo(), nullCount);
+            }
+        }
+
         // (1) Validação de conexão fail-fast ---------------------------------
         try (Connection conn = dataSourceInstance.get().getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute("SELECT 1");
         } catch (Exception e) {
-            // NFR-07: nunca emitir e.getMessage() cru — pode conter senha
             err.println("✗ Falha de conexão: " + ValidarConexaoCommand.mensagemAmigavel(e));
             return 1;
         }
 
-        // (2) Validação do arquivo (delegada ao ExcelLeitor.abrir, mas a
-        // mensagem é re-emitida pelo orquestrador) ----------------------------
+        // (2) Validação do arquivo -------------------------------------------
         if (arquivo == null || !Files.exists(arquivo)) {
             err.println("✗ Arquivo inválido: arquivo não encontrado: " + arquivo);
             return 1;
@@ -191,7 +223,7 @@ public class MapearCommand implements Callable<Integer> {
         }
         LOG.infof("Catálogo carregado: %d campos para fluxo %s", campos.size(), fluxo);
 
-        // Resoluções a partir da config ---------------------------------------
+        // Resoluções a partir da config
         ImportacaoConfig.Mapeamento cfgMap = importacaoConfig.mapeamento();
         String nomeColunaCodigo = codigoImovelConfig.por(fluxo);
         Set<String> colunasFixas = colunasFixasConfig.por(fluxo);
@@ -206,11 +238,21 @@ public class MapearCommand implements Callable<Integer> {
             LOG.infof("Classificação: codigo=%s, %d fixas, %d dinamicas",
                 classificacao.codigo(), classificacao.fixas().size(), classificacao.dinamicas().size());
 
-            // (5) Acumulação skippable de DISTINCT --------------------------
-            Map<String, Set<String>> distinctMap =
-                acumularDistintos(sessao, classificacao, campos, cfgMap);
+            // (5/T3) Acumulação DISTINCT — no modo incremental, apenas para candidatos
+            Map<String, Set<String>> distinctMap;
+            if (mapeamentoExistente.isPresent() && !candidatos.isEmpty()) {
+                // Modo incremental: acumular apenas para headers candidatos presentes na planilha atual
+                Set<String> headersNaPlanilha = new LinkedHashSet<>(classificacao.dinamicas());
+                List<String> candidatosNaPlanilha = candidatos.stream()
+                    .filter(headersNaPlanilha::contains)
+                    .toList();
+                distinctMap = acumularDistintosParaCandidatos(sessao, candidatosNaPlanilha);
+            } else {
+                // Modo normal: acumular para todos os headers MULTIPLA_ESCOLHA do catálogo
+                distinctMap = acumularDistintos(sessao, classificacao, campos, cfgMap);
+            }
 
-            // (6) Auto-mapeamento + persistência ----------------------------
+            // (6) Auto-mapeamento normal ------------------------------------
             EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
                 classificacao,
                 arquivo.getFileName().toString(),
@@ -220,7 +262,21 @@ public class MapearCommand implements Callable<Integer> {
                 header -> distinctMap.getOrDefault(header, Set.of())
             );
             AutoMapeador autoMapeador = new AutoMapeador(cfgMap.caseSensitive(), cfgMap.trimEspacos());
-            mapeamento = autoMapeador.mapear(entrada);
+            Mapeamento mapeamentoNovo = autoMapeador.mapear(entrada);
+
+            // (T5) Mesclagem com mapeamento pré-existente (RISCO-2: novo LinkedHashMap)
+            if (mapeamentoExistente.isPresent()) {
+                mapeamento = mesclarMapeamento(
+                    mapeamentoExistente.get(),
+                    mapeamentoNovo,
+                    candidatos,
+                    distinctMap,
+                    autoMapeador,
+                    cfgMap);
+            } else {
+                mapeamento = mapeamentoNovo;
+            }
+
         } catch (ImportacaoException e) {
             err.println("✗ Arquivo inválido: " + e.getMessage());
             return 1;
@@ -246,6 +302,104 @@ public class MapearCommand implements Callable<Integer> {
 
         imprimirRelatorio(out, mapeamento, saida);
         return 0;
+    }
+
+    /**
+     * (T2) Identifica candidatos para resolução incremental de alternativas.
+     * Candidato é qualquer item de {@code colunasDinamicas} que satisfaz:
+     * (a) status == PENDENTE; (b) idcampo != null; (c) tipo == MULTIPLA_ESCOLHA;
+     * (d) alternativas != null e ao menos uma entrada tem valor null.
+     *
+     * @param existente mapeamento pré-existente carregado do disco
+     * @return lista de headers candidatos
+     */
+    private List<String> identificarCandidatos(Mapeamento existente) {
+        List<String> candidatos = new ArrayList<>();
+        for (Map.Entry<String, ColunaDinamica> e : existente.colunasDinamicas().entrySet()) {
+            ColunaDinamica cd = e.getValue();
+            if (cd.status() == StatusMapeamento.PENDENTE
+                    && cd.idcampo() != null
+                    && cd.tipo() == Tipo.MULTIPLA_ESCOLHA
+                    && cd.alternativas() != null
+                    && cd.alternativas().values().stream().anyMatch(v -> v == null)) {
+                candidatos.add(e.getKey());
+            }
+        }
+        return candidatos;
+    }
+
+    /**
+     * (T3/T5) Mescla o resultado do auto-mapeamento com o mapeamento pré-existente.
+     * Regras (AC5):
+     * <ul>
+     *   <li>MAPEADO no existente → mantém sem reprocessar.</li>
+     *   <li>PENDENTE não-candidato no existente → mantém sem reprocessar.</li>
+     *   <li>Candidatos → substituídos pelo resultado de resolução incremental (T4).</li>
+     *   <li>Headers novos na planilha → adicionados do auto-mapeamento normal.</li>
+     *   <li>Headers ausentes na planilha atual → descartados (planilha é fonte de verdade).</li>
+     * </ul>
+     */
+    private Mapeamento mesclarMapeamento(
+            Mapeamento existente,
+            Mapeamento novo,
+            List<String> candidatos,
+            Map<String, Set<String>> distinctMap,
+            AutoMapeador autoMapeador,
+            ImportacaoConfig.Mapeamento cfgMap) {
+
+        // RISCO-2: construir novo LinkedHashMap — não modificar in-place (unmodifiableMap)
+        Map<String, ColunaDinamica> resultado = new LinkedHashMap<>();
+
+        Set<String> candidatosSet = new LinkedHashSet<>(candidatos);
+
+        // Iterar sobre headers presentes na planilha atual (fonte de verdade)
+        for (String header : novo.colunasDinamicas().keySet()) {
+            ColunaDinamica cdExistente = existente.colunasDinamicas().get(header);
+
+            if (cdExistente == null) {
+                // Header novo na planilha — usar resultado do auto-mapeamento
+                resultado.put(header, novo.colunasDinamicas().get(header));
+            } else if (cdExistente.status() == StatusMapeamento.MAPEADO) {
+                // Preservar MAPEADO intocado (AC5)
+                resultado.put(header, cdExistente);
+            } else if (candidatosSet.contains(header)) {
+                // (T4) Candidato: tentar resolução incremental de alternativas
+                Set<String> distintos = distinctMap.getOrDefault(header, Set.of());
+                List<Alternativa> alternativasCampo =
+                    alternativaRepository.listarPorCampo(cdExistente.idcampo());
+                ColunaDinamica resolvida = autoMapeador.popularAlternativasIncremental(
+                    cdExistente.idcampo(), distintos, alternativasCampo);
+                // Se ainda PENDENTE, atualizar motivo com formato AC6
+                if (resolvida.status() == StatusMapeamento.PENDENTE && resolvida.alternativas() != null) {
+                    long semMatch = resolvida.alternativas().values().stream()
+                        .filter(v -> v == null).count();
+                    long total = resolvida.alternativas().size();
+                    String motivo = semMatch + " de " + total
+                        + " alternativas sem mapeamento (idcampo=" + cdExistente.idcampo()
+                        + " informado; verifique a tabela alternativa)";
+                    resolvida = new ColunaDinamica(
+                        StatusMapeamento.PENDENTE,
+                        resolvida.idcampo(),
+                        resolvida.tipo(),
+                        resolvida.alternativas(),
+                        motivo,
+                        resolvida.sugestoes());
+                }
+                resultado.put(header, resolvida);
+            } else {
+                // PENDENTE não-candidato → mantém sem alteração (AC5)
+                resultado.put(header, cdExistente);
+            }
+        }
+        // Headers do existente ausentes da planilha atual → descartados automaticamente
+        // (não iteramos sobre existente.colunasDinamicas(), apenas sobre novo)
+
+        return new Mapeamento(
+            novo.fluxo(),
+            novo.planilha(),
+            novo.colunaCodigoImovel(),
+            novo.colunasFixas(),
+            java.util.Collections.unmodifiableMap(resultado));
     }
 
     /**
@@ -279,14 +433,41 @@ public class MapearCommand implements Callable<Integer> {
             return Map.of();
         }
 
+        return acumularDistintosParaHeaders(sessao, headersMultiplaEscolha);
+    }
+
+    /**
+     * (T3) Acumula valores DISTINCT apenas para os headers candidatos no modo
+     * incremental. Só é chamado quando há candidatos na lista (AC3).
+     */
+    private Map<String, Set<String>> acumularDistintosParaCandidatos(
+            ExcelSessao sessao,
+            List<String> candidatosNaPlanilha) {
+
+        if (candidatosNaPlanilha.isEmpty()) {
+            LOG.info("Nenhum candidato incremental na planilha atual: pulando varredura de DISTINCT.");
+            return Map.of();
+        }
+
+        Set<String> headersSet = new LinkedHashSet<>(candidatosNaPlanilha);
+        return acumularDistintosParaHeaders(sessao, headersSet);
+    }
+
+    /**
+     * Varredura única de linhas (NFR-04 — stream-once) acumulando valores
+     * distintos para o conjunto de headers informado.
+     */
+    private Map<String, Set<String>> acumularDistintosParaHeaders(
+            ExcelSessao sessao,
+            Set<String> headers) {
+
         Map<String, Set<String>> distinctMap = new HashMap<>();
-        for (String h : headersMultiplaEscolha) {
+        for (String h : headers) {
             distinctMap.put(h, new LinkedHashSet<>());
         }
 
-        // Varredura única de linhas (NFR-04 — stream-once)
         sessao.linhas().forEach(linha -> {
-            for (String h : headersMultiplaEscolha) {
+            for (String h : headers) {
                 String valor = linha.get(h);
                 if (valor != null && !valor.isBlank()) {
                     distinctMap.get(h).add(valor);
@@ -312,7 +493,12 @@ public class MapearCommand implements Callable<Integer> {
 
     /**
      * Imprime o relatório final ao stdout em 3 blocos (AC6):
-     * (a) resumo numérico, (b) colunas fixas detectadas, (c) PENDENTES detalhados.
+     * (a) resumo numérico, (b) colunas fixas detectadas,
+     * (c) PENDENTES detalhados — distinguindo subtipo conforme AC7 (Story 3.6).
+     *
+     * <p><strong>Decisão T6 (AC8):</strong> subtipo calculado inline com
+     * {@code if (cd.idcampo() == null)} — sem enum {@code SubtipoPendente} separado.
+     * Escolha registrada nas Completion Notes da Story 3.6.
      */
     private void imprimirRelatorio(PrintWriter out, Mapeamento m, Path arquivoSaida) {
         Collection<ColunaDinamica> dinamicas = m.colunasDinamicas().values();
@@ -335,14 +521,32 @@ public class MapearCommand implements Callable<Integer> {
             out.println();
         }
 
-        // (c) PENDENTES detalhados
+        // (c) PENDENTES detalhados com distinção de subtipo (AC7 Story 3.6)
         if (pendentes > 0) {
             out.println("Itens pendentes (edite o arquivo manualmente — FR-08):");
             for (Map.Entry<String, ColunaDinamica> e : m.colunasDinamicas().entrySet()) {
                 ColunaDinamica cd = e.getValue();
                 if (cd.status() == StatusMapeamento.PENDENTE) {
-                    String motivo = cd.motivo() == null ? "(sem motivo)" : cd.motivo();
-                    out.println("  - " + e.getKey() + ": " + motivo);
+                    if (cd.idcampo() == null) {
+                        // Subtipo SEM_CAMPO: bloqueador total
+                        String motivo = cd.motivo() == null ? "(sem motivo)" : cd.motivo();
+                        out.println("  - [CAMPO PENDENTE] " + e.getKey() + ": " + motivo);
+                    } else if (cd.tipo() == Tipo.MULTIPLA_ESCOLHA
+                            && cd.alternativas() != null
+                            && cd.alternativas().values().stream().anyMatch(v -> v == null)) {
+                        // Subtipo SEM_ALTERNATIVAS: idcampo preenchido, faltam alternativas
+                        long nullCount = cd.alternativas().values().stream()
+                            .filter(v -> v == null).count();
+                        long totalAlts = cd.alternativas().size();
+                        out.println("  - [ALTERNATIVAS PENDENTES] " + e.getKey() + ": "
+                            + nullCount + " de " + totalAlts
+                            + " alternativas sem mapeamento (idcampo=" + cd.idcampo()
+                            + " informado; verifique a tabela alternativa)");
+                    } else {
+                        // Outros casos PENDENTE (ex: tipo preenchido mas sem alternativas null)
+                        String motivo = cd.motivo() == null ? "(sem motivo)" : cd.motivo();
+                        out.println("  - " + e.getKey() + ": " + motivo);
+                    }
                 }
             }
             out.println();

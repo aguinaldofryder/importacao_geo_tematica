@@ -32,6 +32,7 @@
 | [3.3](./3.3.mapeamento-validador.md) ✅ | MapeamentoValidador (gate PENDENTE) | @dev | 1 h | 3.1 |
 | [3.4](./3.4.comando-mapear.md) ✅ | Comando `mapear` | @dev | 1 h | 2.3, 2.4, 3.2 |
 | [3.5](./3.5.comando-validar.md) ✅ | Comando `validar` | @dev | 0,3 h | 3.3 |
+| [3.6](./3.6.remapeamento-incremental.md) | Re-mapeamento incremental no comando `mapear` | @dev | 3 h | 3.1, 3.2, 3.3, 3.4 |
 
 ## Épico 4 — Geração de SQL e execução
 

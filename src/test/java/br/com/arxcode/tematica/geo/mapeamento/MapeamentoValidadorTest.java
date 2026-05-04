@@ -260,4 +260,56 @@ class MapeamentoValidadorTest {
         assertThrows(IllegalArgumentException.class,
                 () -> new ResultadoValidacao(true, null));
     }
+
+    // ---------- AC13 Story 3.6 — distinção de subtipo de PENDENTE ----------
+
+    /**
+     * AC13(a): coluna PENDENTE com idcampo != null + tipo MULTIPLA_ESCOLHA +
+     * ao menos uma alternativa null → mensagem deve mencionar "alternativas parcialmente
+     * resolvidas" e o idcampo (formato diferenciado AC9).
+     */
+    @Test
+    void cenario_ac13a_pendenteSemAlternativas_mensagemDistingueSubtipo() {
+        Map<String, Integer> alts = new HashMap<>();
+        alts.put("Alvenaria", 501);
+        alts.put("Tijolo", null);
+        ColunaDinamica pendenteSemAlts = new ColunaDinamica(
+            StatusMapeamento.PENDENTE, 10, Tipo.MULTIPLA_ESCOLHA, alts,
+            "1 de 2 alternativas sem mapeamento", null);
+        Map<String, ColunaDinamica> dinamicas = Map.of("TIPO_MURO", pendenteSemAlts);
+
+        ResultadoValidacao resultado = validador.validar(mapeamento(Map.of(), dinamicas));
+
+        assertFalse(resultado.valido());
+        assertEquals(1, resultado.pendencias().size());
+        String msg = resultado.pendencias().get(0);
+        assertTrue(msg.contains("TIPO_MURO"), "Mensagem deve conter o header. msg=" + msg);
+        assertTrue(msg.contains("alternativas parcialmente resolvidas"),
+            "Mensagem deve conter 'alternativas parcialmente resolvidas'. msg=" + msg);
+        assertTrue(msg.contains("idcampo=10"),
+            "Mensagem deve conter o idcampo. msg=" + msg);
+    }
+
+    /**
+     * AC13(b): coluna PENDENTE com idcampo == null → mensagem continua com
+     * o formato existente (sem distinção de subtipo, sem regressão).
+     */
+    @Test
+    void cenario_ac13b_pendenteSemIdcampo_mensagemFormatoOriginal() {
+        ColunaDinamica pendenteSemId = new ColunaDinamica(
+            StatusMapeamento.PENDENTE, null, null, null,
+            "Nenhum campo encontrado com descricao='COLUNA_X'", null);
+        Map<String, ColunaDinamica> dinamicas = Map.of("COLUNA_X", pendenteSemId);
+
+        ResultadoValidacao resultado = validador.validar(mapeamento(Map.of(), dinamicas));
+
+        assertFalse(resultado.valido());
+        assertEquals(1, resultado.pendencias().size());
+        String msg = resultado.pendencias().get(0);
+        assertTrue(msg.contains("COLUNA_X"), "Mensagem deve conter o header. msg=" + msg);
+        assertTrue(msg.contains("Nenhum campo encontrado"),
+            "Mensagem deve conter o motivo original. msg=" + msg);
+        assertFalse(msg.contains("alternativas parcialmente resolvidas"),
+            "Mensagem não deve mencionar alternativas para item sem idcampo. msg=" + msg);
+    }
 }

@@ -63,8 +63,17 @@ public class MapeamentoValidador {
             ColunaDinamica col = e.getValue();
 
             if (col.status() == StatusMapeamento.PENDENTE) {
-                String motivo = col.motivo() != null ? col.motivo() : "status PENDENTE sem motivo";
-                pendencias.add("Coluna '" + header + "': " + motivo);
+                // AC9 Story 3.6: distinção de subtipo para PENDENTE
+                if (col.idcampo() != null
+                        && col.tipo() == Tipo.MULTIPLA_ESCOLHA
+                        && col.alternativas() != null
+                        && col.alternativas().values().stream().anyMatch(java.util.Objects::isNull)) {
+                    pendencias.add("Coluna '" + header + "': alternativas parcialmente resolvidas"
+                        + " — verifique valores null em alternativas (idcampo=" + col.idcampo() + ")");
+                } else {
+                    String motivo = col.motivo() != null ? col.motivo() : "status PENDENTE sem motivo";
+                    pendencias.add("Coluna '" + header + "': " + motivo);
+                }
                 continue;
             }
 
