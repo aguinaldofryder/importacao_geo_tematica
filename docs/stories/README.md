@@ -58,7 +58,7 @@
 | [6.1](./6.1.perfil-native-reflect-config.md) | Perfil native + reflect-config (build local) | @dev | 1 h | 4.5 |
 | [6.2](./6.2.ci-matrix-linux-windows.md) | GitHub Actions matrix Linux + Windows | @devops | 1,5 h | 6.1 |
 | [6.3](./6.3.e2e-binario-nativo.md) | Suite E2E sobre o binário nativo | @qa + @dev | 2 h | 5.2, 6.2 |
-| [6.4](./6.4.manual-operador.md) | MANUAL.md (operador) | @pm + @architect | 1 h | 5.2 |
+| [6.4](./6.4.manual-operador.md) ✅ | MANUAL.md (operador) | @pm + @architect | 1 h | 5.2 |
 | [6.5](./6.5.runbook-dba.md) | RUNBOOK-DBA.md | @pm + @architect + DBA | 1 h | 4.5 |
 | [6.6](./6.6.github-release-automation.md) | GitHub Release automation | @devops | 1 h | 6.2, 6.3, 6.4, 6.5 |
 

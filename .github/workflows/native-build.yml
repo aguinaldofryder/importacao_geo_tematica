@@ -100,3 +100,56 @@ jobs:
 
       - name: Executar suite E2E
         run: bash scripts/e2e.sh dist/importacao-geo-linux-x64
+
+  # ── Job Release — publica GitHub Release em tags v*.*.* (AC1–AC5 / Story 6.6) ──
+  release:
+    name: GitHub Release
+    # Só executa em tags de release — não em push para main.
+    if: startsWith(github.ref, 'refs/tags/v')
+    # Gating AC2: unit+integration (ci.yml é separado; aqui garantimos native+e2e verdes).
+    needs: [native-build, e2e]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # Necessário para criar a GitHub Release (AC1 Dev Notes)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Baixar binários produzidos pelos jobs anteriores
+      - name: Baixar binário Linux
+        uses: actions/download-artifact@v4
+        with:
+          name: importacao-geo-linux-x64
+          path: dist/
+
+      - name: Baixar binário Windows
+        uses: actions/download-artifact@v4
+        with:
+          name: importacao-geo-windows-x64.exe
+          path: dist/
+
+      # Renomear binário Windows para nome final esperado (AC3)
+      - name: Preparar assets
+        shell: bash
+        run: |
+          chmod +x dist/importacao-geo-linux-x64
+          # O artifact Windows já tem o nome correto importacao-geo-windows-x64.exe
+          ls -lh dist/
+
+      # Publicar GitHub Release com os 5 assets obrigatórios (AC3)
+      # softprops/action-gh-release lê CHANGELOG.md automaticamente quando
+      # body_path não é definido e o arquivo existe (AC4 Dev Notes).
+      - name: Publicar GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # Extrai a seção da versão atual do CHANGELOG.md como release notes (AC4)
+          generate_release_notes: false
+          body_path: CHANGELOG.md
+          # Pre-release para tags com sufixo (ex.: v0.0.1-rc, v1.0.0-beta)
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            dist/importacao-geo-linux-x64
+            dist/importacao-geo-windows-x64.exe
+            MANUAL.md
+            RUNBOOK-DBA.md
+            application.properties.exemplo

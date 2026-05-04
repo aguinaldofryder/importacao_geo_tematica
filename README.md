@@ -69,6 +69,10 @@ A importação da planilha predial segue a mesma premissa da planilha territoria
 * Para definifr se um campo deve ser utilizado para predial ou territorial deve ser feito um JOIN da tabela campo com a grupocamo. Na tabela grupocamo, a coluna funcionalidade define 'TERRENO' ou 'SEGMENTO'. 
 * O sistema pode evoluir para uma API com interface web.
 
+## Uso
+
+Para configurar e operar a ferramenta consulte o **[MANUAL.md](./MANUAL.md)** — manual completo em português cobrindo pré-requisitos, configuração, fluxo de importação, interpretação do resumo, exit codes e troubleshooting.
+
 ## Desenvolvimento
 
 Este projeto segue o framework **Synkra AIOX**.

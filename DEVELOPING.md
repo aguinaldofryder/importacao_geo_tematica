@@ -189,6 +189,73 @@ Formato de entrada:
 
 ---
 
+## Procedimento de Release
+
+### Visão geral
+
+Todo GitHub Release é criado automaticamente pelo job `release` em `.github/workflows/native-build.yml`
+ao receber push de uma tag `vX.Y.Z` para `main`. O job só é executado depois que os jobs
+`native-build` (Linux + Windows) e `e2e` passam com sucesso (gating AC2 da Story 6.6).
+
+Assets publicados automaticamente em cada release:
+
+| Asset | Descrição |
+|---|---|
+| `importacao-geo-linux-x64` | Binário nativo Linux x86-64 |
+| `importacao-geo-windows-x64.exe` | Binário nativo Windows x86-64 |
+| `MANUAL.md` | Manual do operador |
+| `RUNBOOK-DBA.md` | Procedimentos de banco de dados |
+| `application.properties.exemplo` | Template de configuração |
+
+### Versionar (Semver)
+
+| Situação | Incremento |
+|---|---|
+| Quebra de compatibilidade (novo formato de planilha, remoção de subcomando, alteração de schema SQL) | MAJOR |
+| Nova funcionalidade retro-compatível | MINOR |
+| Correção de bug | PATCH |
+
+### Passo a passo
+
+```bash
+# 1. Atualizar CHANGELOG.md: mover [Unreleased] → [X.Y.Z] com data de hoje
+#    e atualizar os links no rodapé.
+
+# 2. Commitar as mudanças (deve estar em main com PR aprovado)
+git add CHANGELOG.md
+git commit -m "chore: release vX.Y.Z"
+
+# 3. Criar tag anotada (obrigatório — tags leves não disparam o workflow)
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+
+# 4. Enviar tag para o remote
+git push origin vX.Y.Z
+```
+
+O GitHub Actions irá:
+1. Compilar binários nativos (Linux + Windows) — ~10-25 min
+2. Executar suite E2E contra o binário Linux
+3. Publicar a GitHub Release com os 5 assets
+
+### Tag sombra (smoke test do pipeline — AC7)
+
+Antes da `v1.0.0` oficial, validar o pipeline com uma tag de pré-release:
+
+```bash
+git tag -a v0.0.1-rc -m "Pipeline smoke test"
+git push origin v0.0.1-rc
+```
+
+Tags com sufixo (ex.: `-rc`, `-beta`) são publicadas automaticamente como **Pre-release**.
+
+### Pós-release
+
+- Verificar na aba **Releases** do GitHub que os 5 assets estão presentes.
+- Adicionar nova seção `[Unreleased]` no topo do `CHANGELOG.md`.
+- Comunicar o operador com o link da release.
+
+---
+
 ## Dependências opcionais do `commons-compress` (Leia antes de atualizar versões)
 
 O `fastexcel-reader` usa `commons-compress` para leitura de ZIP (`.xlsx`). O `commons-compress`
