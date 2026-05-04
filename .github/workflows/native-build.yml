@@ -78,3 +78,25 @@ jobs:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.binary }}
           retention-days: 30
+
+  # ── Job E2E — executa a suite e2e.sh contra o binário Linux (AC7 / Story 6.3) ──
+  e2e:
+    name: E2E (ubuntu-latest)
+    needs: native-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar binário Linux
+        uses: actions/download-artifact@v4
+        with:
+          name: importacao-geo-linux-x64
+          path: dist/
+
+      - name: Tornar binário executável
+        run: chmod +x dist/importacao-geo-linux-x64
+
+      - name: Executar suite E2E
+        run: bash scripts/e2e.sh dist/importacao-geo-linux-x64
