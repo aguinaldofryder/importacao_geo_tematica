@@ -83,13 +83,24 @@ class ImportarCommandTest {
     @Inject
     MapeamentoStore mapeamentoStore;
 
-    /** DDL mínimo — apenas as colunas utilizadas pelas fixtures de teste. */
+    /**
+     * DDL mínimo — apenas as colunas utilizadas pelas fixtures de teste.
+     * {@code tribcadastrogeral_idkey} é NUMERIC para espelhar o schema de produção
+     * (Story 6.1: o {@code ExistenciaRepository} usa {@code CAST(? AS numeric)}).
+     */
     static final String DDL =
             "CREATE TABLE IF NOT EXISTS aise.tribcadastroimobiliario ("
             + "id BIGSERIAL PRIMARY KEY, "
-            + "tribcadastrogeral_idkey VARCHAR(50), "
+            + "tribcadastrogeral_idkey NUMERIC, "
             + "area_terreno VARCHAR(100)"
             + ");";
+
+    /** Código presente 1 (numérico, improvávelmente existente no banco real). */
+    static final String CODIGO_PRESENTE_1 = "900001";
+    /** Código presente 2. */
+    static final String CODIGO_PRESENTE_2 = "900002";
+    /** Código ausente (não inserido no setUp — simula imóvel inexistente). */
+    static final String CODIGO_AUSENTE = "999999";
 
     @BeforeEach
     void setUp() throws Exception {
@@ -97,11 +108,11 @@ class ImportarCommandTest {
         try (Connection c = dataSource.get().getConnection(); Statement s = c.createStatement()) {
             s.execute(DDL);
             s.execute("DELETE FROM aise.tribcadastroimobiliario "
-                    + "WHERE tribcadastrogeral_idkey LIKE 'TEST_IMP_%'");
+                    + "WHERE tribcadastrogeral_idkey IN (900001, 900002)");
             s.execute("INSERT INTO aise.tribcadastroimobiliario (tribcadastrogeral_idkey) "
-                    + "VALUES ('TEST_IMP_001')");
+                    + "VALUES (900001)");
             s.execute("INSERT INTO aise.tribcadastroimobiliario (tribcadastrogeral_idkey) "
-                    + "VALUES ('TEST_IMP_002')");
+                    + "VALUES (900002)");
         }
         // Limpar artefatos anteriores no diretório de saída
         if (Files.exists(OUTPUT_DIR)) {
@@ -123,7 +134,7 @@ class ImportarCommandTest {
     void tearDown() throws Exception {
         try (Connection c = dataSource.get().getConnection(); Statement s = c.createStatement()) {
             s.execute("DELETE FROM aise.tribcadastroimobiliario "
-                    + "WHERE tribcadastrogeral_idkey LIKE 'TEST_IMP_%'");
+                    + "WHERE tribcadastrogeral_idkey IN (900001, 900002)");
         }
     }
 
@@ -154,7 +165,7 @@ class ImportarCommandTest {
         );
     }
 
-    /** Planilha com 2 linhas de dados — TEST_IMP_001 e TEST_IMP_002 (ambas presentes no banco). */
+    /** Planilha com 2 linhas de dados — 900001 e 900002 (ambas presentes no banco). */
     private Path criarXlsx2Presentes(Path dir) throws IOException {
         Path xlsx = dir.resolve("planilha-test.xlsx");
         try (OutputStream os = Files.newOutputStream(xlsx)) {
@@ -162,16 +173,16 @@ class ImportarCommandTest {
             Worksheet ws = wb.newWorksheet("Sheet1");
             ws.value(0, 0, "MATRICULA");
             ws.value(0, 1, "AREA_TERRENO");
-            ws.value(1, 0, "TEST_IMP_001");
+            ws.value(1, 0, CODIGO_PRESENTE_1);
             ws.value(1, 1, "100");
-            ws.value(2, 0, "TEST_IMP_002");
+            ws.value(2, 0, CODIGO_PRESENTE_2);
             ws.value(2, 1, "200");
             wb.finish();
         }
         return xlsx;
     }
 
-    /** Planilha com 3 linhas — 2 presentes + 1 ausente (TEST_IMP_AUSENTE). */
+    /** Planilha com 3 linhas — 2 presentes + 1 ausente (999999). */
     private Path criarXlsx3Linhas(Path dir) throws IOException {
         Path xlsx = dir.resolve("planilha-3linhas.xlsx");
         try (OutputStream os = Files.newOutputStream(xlsx)) {
@@ -179,11 +190,11 @@ class ImportarCommandTest {
             Worksheet ws = wb.newWorksheet("Sheet1");
             ws.value(0, 0, "MATRICULA");
             ws.value(0, 1, "AREA_TERRENO");
-            ws.value(1, 0, "TEST_IMP_001");
+            ws.value(1, 0, CODIGO_PRESENTE_1);
             ws.value(1, 1, "100");
-            ws.value(2, 0, "TEST_IMP_002");
+            ws.value(2, 0, CODIGO_PRESENTE_2);
             ws.value(2, 1, "200");
-            ws.value(3, 0, "TEST_IMP_AUSENTE");
+            ws.value(3, 0, CODIGO_AUSENTE);
             ws.value(3, 1, "300");
             wb.finish();
         }
@@ -251,7 +262,7 @@ class ImportarCommandTest {
         List<Path> logs = listarArtefatos(".log");
         assertFalse(logs.isEmpty(), "Deve haver .log");
         String conteudoLog = Files.readString(logs.get(0), StandardCharsets.UTF_8);
-        assertTrue(conteudoLog.contains("TEST_IMP_AUSENTE"), "Log deve mencionar matrícula ausente");
+        assertTrue(conteudoLog.contains(CODIGO_AUSENTE), "Log deve mencionar matrícula ausente");
     }
 
     // ── Cenário 3: arquivo inexistente ────────────────────────────────────────

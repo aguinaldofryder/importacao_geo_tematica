@@ -64,8 +64,12 @@ public class ExistenciaRepository {
      * @throws ImportacaoException em caso de falha de I/O JDBC (mensagem em PT)
      */
     public boolean existeImovel(String codigo, Fluxo fluxo) {
+        // CAST(? AS numeric) permite passar o código como String e deixa o PostgreSQL
+        // realizar a conversão — necessário porque as colunas-chave (tribcadastrogeral_idkey,
+        // idkey) são do tipo numeric no banco de produção. Para código nulo, CAST(NULL AS
+        // numeric) é válido em SQL e não casa nenhuma linha (WHERE col = NULL → UNKNOWN).
         String sql = "SELECT 1 FROM aise." + fluxo.tabelaPrincipal()
-                + " WHERE " + fluxo.colunaChave() + " = ?";
+                + " WHERE " + fluxo.colunaChave() + " = CAST(? AS numeric)";
         LOG.debugf("Verificando existência: fluxo=%s, codigo=%s", fluxo.name(), codigo);
         try (Connection c = dataSourceInstance.get().getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {

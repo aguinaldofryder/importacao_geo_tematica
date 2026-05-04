@@ -34,20 +34,25 @@ class ExistenciaRepositoryTest {
     @Inject
     Instance<DataSource> dataSource;
 
+    // DDL usa NUMERIC para tribcadastrogeral_idkey, espelhando o schema de produção.
+    // O teste anterior usava VARCHAR(50), o que mascarava o bug onde ps.setString()
+    // falhava contra a coluna numeric real (Story 4.5 bug fix).
     static final String DDL_TABELA =
             "CREATE TABLE IF NOT EXISTS aise.tribcadastroimobiliario ("
             + "id BIGSERIAL PRIMARY KEY, "
-            + "tribcadastrogeral_idkey VARCHAR(50)"
+            + "tribcadastrogeral_idkey NUMERIC"
             + ");";
+
+    static final String CODIGO_EXISTENTE = "900001";
 
     @BeforeEach
     void setUp() throws Exception {
         try (Connection c = dataSource.get().getConnection(); Statement s = c.createStatement()) {
             s.execute(DDL_TABELA);
             s.execute("DELETE FROM aise.tribcadastroimobiliario "
-                    + "WHERE tribcadastrogeral_idkey = 'TEST_EXIST_001'");
+                    + "WHERE tribcadastrogeral_idkey = " + CODIGO_EXISTENTE);
             s.execute("INSERT INTO aise.tribcadastroimobiliario (tribcadastrogeral_idkey) "
-                    + "VALUES ('TEST_EXIST_001')");
+                    + "VALUES (" + CODIGO_EXISTENTE + ")");
         }
     }
 
@@ -55,31 +60,32 @@ class ExistenciaRepositoryTest {
     void tearDown() throws Exception {
         try (Connection c = dataSource.get().getConnection(); Statement s = c.createStatement()) {
             s.execute("DELETE FROM aise.tribcadastroimobiliario "
-                    + "WHERE tribcadastrogeral_idkey = 'TEST_EXIST_001'");
+                    + "WHERE tribcadastrogeral_idkey = " + CODIGO_EXISTENTE);
         }
     }
 
     /** AC5 Teste 1: imóvel seeded deve ser encontrado no fluxo TERRITORIAL. */
     @Test
     void deveRetornarTrueParaImovelExistente() {
-        assertTrue(repo.existeImovel("TEST_EXIST_001", Fluxo.TERRITORIAL),
+        assertTrue(repo.existeImovel(CODIGO_EXISTENTE, Fluxo.TERRITORIAL),
                 "Imóvel seeded deve ser encontrado");
     }
 
     /** AC5 Teste 2: código não presente na tabela deve retornar false. */
     @Test
     void deveRetornarFalseParaImovelInexistente() {
-        assertFalse(repo.existeImovel("TEST_INEXISTENTE_XYZ", Fluxo.TERRITORIAL),
+        assertFalse(repo.existeImovel("999999999", Fluxo.TERRITORIAL),
                 "Código inexistente não deve ser encontrado");
     }
 
     /**
      * AC5 Teste 3: código nulo — {@code PreparedStatement.setString(1, null)} é válido JDBC;
-     * a cláusula {@code WHERE = NULL} (vs. {@code IS NULL}) não casa nenhuma linha.
+     * {@code CAST(NULL AS numeric)} retorna NULL e {@code WHERE col = NULL} avalia para
+     * UNKNOWN (não TRUE), portanto não casa nenhuma linha.
      */
     @Test
     void deveRetornarFalseParaCodigoNulo() {
         assertFalse(repo.existeImovel(null, Fluxo.TERRITORIAL),
-                "Código nulo não deve encontrar imóvel (WHERE = NULL não casa nenhuma linha)");
+                "Código nulo não deve encontrar imóvel (CAST(NULL AS numeric) não casa nenhuma linha)");
     }
 }
