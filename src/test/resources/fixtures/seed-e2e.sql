@@ -45,19 +45,24 @@ CREATE TABLE IF NOT EXISTS aise.alternativa (
 
 -- ── Tabelas principais ───────────────────────────────────────────────────────
 -- tribcadastroimobiliario: apenas UPDATE (nunca INSERT em produção — CON-03)
+-- PK composta real: (tipocadastro, cadastrogeral)
 -- Coluna física `testada` usada pelo fluxo TERRITORIAL (colunas-fixas.territorial=TESTADA)
 CREATE TABLE IF NOT EXISTS aise.tribcadastroimobiliario (
-    id                      BIGSERIAL    PRIMARY KEY,
-    tribcadastrogeral_idkey NUMERIC,
-    testada                 VARCHAR(50)
+    tipocadastro  SMALLINT    NOT NULL DEFAULT 1,
+    cadastrogeral NUMERIC     NOT NULL,
+    testada       VARCHAR(50),
+    PRIMARY KEY (tipocadastro, cadastrogeral)
 );
 
 -- tribimobiliariosegmento: apenas UPDATE (nunca INSERT em produção — CON-03)
+-- PK composta real: (tipocadastro, cadastrogeral, sequencia)
 -- Coluna física `area_construida` usada pelo fluxo PREDIAL (colunas-fixas.predial=AREA_CONSTRUIDA)
 CREATE TABLE IF NOT EXISTS aise.tribimobiliariosegmento (
-    id              BIGSERIAL   PRIMARY KEY,
-    idkey           NUMERIC,
-    area_construida VARCHAR(50)
+    tipocadastro    SMALLINT    NOT NULL DEFAULT 1,
+    cadastrogeral   NUMERIC     NOT NULL,
+    sequencia       NUMERIC     NOT NULL,
+    area_construida VARCHAR(50),
+    PRIMARY KEY (tipocadastro, cadastrogeral, sequencia)
 );
 
 -- ── Tabelas de respostas ─────────────────────────────────────────────────────
@@ -115,31 +120,31 @@ INSERT INTO aise.alternativa (id, descricao, idcampo) VALUES
 -- DML — Tabelas principais pré-populadas (chaves casadas com os xlsx)
 -- =============================================================================
 
--- Fluxo Territorial: tribcadastrogeral_idkey 100001–100010
-INSERT INTO aise.tribcadastroimobiliario (tribcadastrogeral_idkey, testada) VALUES
-    (100001, NULL),
-    (100002, NULL),
-    (100003, NULL),
-    (100004, NULL),
-    (100005, NULL),
-    (100006, NULL),
-    (100007, NULL),
-    (100008, NULL),
-    (100009, NULL),
-    (100010, NULL);
+-- Fluxo Territorial: cadastrogeral 100001–100010
+INSERT INTO aise.tribcadastroimobiliario (tipocadastro, cadastrogeral, testada) VALUES
+    (1, 100001, NULL),
+    (1, 100002, NULL),
+    (1, 100003, NULL),
+    (1, 100004, NULL),
+    (1, 100005, NULL),
+    (1, 100006, NULL),
+    (1, 100007, NULL),
+    (1, 100008, NULL),
+    (1, 100009, NULL),
+    (1, 100010, NULL);
 
--- Fluxo Predial: idkey 200001–200010
-INSERT INTO aise.tribimobiliariosegmento (idkey, area_construida) VALUES
-    (200001, NULL),
-    (200002, NULL),
-    (200003, NULL),
-    (200004, NULL),
-    (200005, NULL),
-    (200006, NULL),
-    (200007, NULL),
-    (200008, NULL),
-    (200009, NULL),
-    (200010, NULL);
+-- Fluxo Predial: cadastrogeral 200001–200010, sequencia 1
+INSERT INTO aise.tribimobiliariosegmento (tipocadastro, cadastrogeral, sequencia, area_construida) VALUES
+    (1, 200001, 1, NULL),
+    (1, 200002, 1, NULL),
+    (1, 200003, 1, NULL),
+    (1, 200004, 1, NULL),
+    (1, 200005, 1, NULL),
+    (1, 200006, 1, NULL),
+    (1, 200007, 1, NULL),
+    (1, 200008, 1, NULL),
+    (1, 200009, 1, NULL),
+    (1, 200010, 1, NULL);
 
 -- =============================================================================
 -- Respostas vazias — exercita INSERT (primeiro run) e UPDATE (re-run)
