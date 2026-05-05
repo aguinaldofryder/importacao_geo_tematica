@@ -69,7 +69,7 @@ public class ExistenciaRepository {
         // idkey) são do tipo numeric no banco de produção. Para código nulo, CAST(NULL AS
         // numeric) é válido em SQL e não casa nenhuma linha (WHERE col = NULL → UNKNOWN).
         String sql = "SELECT 1 FROM aise." + fluxo.tabelaPrincipal()
-                + " WHERE " + fluxo.colunaChave() + " = CAST(? AS numeric)";
+                + " WHERE tipocadastro = 1 and " + fluxo.colunaChave() + " = CAST(? AS numeric)";
         LOG.debugf("Verificando existência: fluxo=%s, codigo=%s", fluxo.name(), codigo);
         try (Connection c = dataSourceInstance.get().getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
