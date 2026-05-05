@@ -175,6 +175,23 @@ public class ImportarCommand implements Callable<Integer> {
             return 1;
         }
 
+        // ── Contagem prévia de linhas para a barra de progresso (Story 5.3) ─────
+        // Realizada após a validação do arquivo (Fase 1) e antes da conexão ao banco
+        // (Fase 2), para fail-fast no arquivo antes de consumir conexão de rede.
+        // ExcelLeitor.abrir() lança ImportacaoException (unchecked) em erros de I/O.
+        int totalLinhas;
+        try (ExcelSessao sessaoContagem = ExcelLeitor.abrir(arquivo)) {
+            totalLinhas = (int) sessaoContagem.linhas().count();
+        } catch (Exception e) {
+            err.println("✗ Falha ao contar linhas da planilha: " + e.getMessage());
+            return 1;
+        }
+        if (totalLinhas == 0) {
+            err.println("✗ Planilha sem linhas de dados.");
+            return 1;
+        }
+        LOG.debugf("Total de linhas de dados na planilha: %d", totalLinhas);
+
         // ── Fase 2: valida conexão ────────────────────────────────────────────────
         try (Connection conn = dataSourceInstance.get().getConnection()) {
             // conexão OK — fecha imediatamente via try-with-resources
@@ -217,6 +234,7 @@ public class ImportarCommand implements Callable<Integer> {
 
         LogErros logErros = new LogErros(fluxo, nomePlanilha);
         ResumoExecucao resumo = new ResumoExecucao(fluxo, nomePlanilha);
+        BarraProgresso barra = new BarraProgresso(totalLinhas, err);
         StringBuilder sqlBuffer = new StringBuilder();
         // linha 1 = cabeçalho; dados começam em 2 (AC10)
         int[] linhaExcel = {1};
@@ -231,8 +249,9 @@ public class ImportarCommand implements Callable<Integer> {
         resumo.iniciar();
         try (ExcelSessao sessao = ExcelLeitor.abrir(arquivo)) {
             sessao.linhas().forEach(row ->
-                processarLinha(row, linhaExcel, mapeamentoObj, logErros, sqlBuffer, resumo));
+                processarLinha(row, linhaExcel, mapeamentoObj, logErros, sqlBuffer, resumo, barra));
         }
+        barra.finalizar();
 
         // Gravar artefatos (AC11/AC12) ──────────────────────────────────────────
         String ts = inicio.format(FMT_ARQUIVO);
@@ -299,13 +318,15 @@ public class ImportarCommand implements Callable<Integer> {
      * @param logErros    acumulador de erros
      * @param sqlBuffer   buffer do arquivo {@code .sql}
      * @param resumo      acumulador de contadores de execução (Story 5.1)
+     * @param barra       barra de progresso no terminal (Story 5.3)
      */
     private void processarLinha(Map<String, String> row,
                                  int[] linhaExcel,
                                  Mapeamento mapeamento,
                                  LogErros logErros,
                                  StringBuilder sqlBuffer,
-                                 ResumoExecucao resumo) {
+                                 ResumoExecucao resumo,
+                                 BarraProgresso barra) {
         linhaExcel[0]++;
         int numLinha = linhaExcel[0];
 
@@ -317,6 +338,7 @@ public class ImportarCommand implements Callable<Integer> {
             logErros.registrarLinhaPulada(numLinha, "(vazio)",
                     "Código do imóvel vazio ou ausente na coluna '" + mapeamento.colunaCodigoImovel() + "'");
             resumo.registrarErro();
+            barra.atualizar(linhaExcel[0] - 1, resumo.erro());
             return;
         }
 
@@ -325,6 +347,7 @@ public class ImportarCommand implements Callable<Integer> {
             logErros.registrarLinhaPulada(numLinha, codigoImovel,
                     "Imóvel não encontrado em " + fluxo.tabelaPrincipal());
             resumo.registrarErro();
+            barra.atualizar(linhaExcel[0] - 1, resumo.erro());
             return;
         }
 
@@ -378,5 +401,9 @@ public class ImportarCommand implements Callable<Integer> {
         } else {
             resumo.registrarErro();
         }
+
+        // Atualiza barra de progresso (Story 5.3) ─────────────────────────────
+        // linhaExcel[0] foi incrementado no início; -1 converte para índice de dados processados
+        barra.atualizar(linhaExcel[0] - 1, resumo.erro());
     }
 }
