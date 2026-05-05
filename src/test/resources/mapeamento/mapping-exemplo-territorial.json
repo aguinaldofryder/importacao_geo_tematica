@@ -2,6 +2,7 @@
   "fluxo": "TERRITORIAL",
   "planilha": "TABELA_TERRITORIAL_V001.xlsx",
   "colunaCodigoImovel": "MATRICULA",
+  "colunaSequenciaPredial": null,
   "colunasFixas": {
     "AREA_TERRENO": "area_terreno",
     "TESTADA": "testada_principal"

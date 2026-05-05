@@ -25,11 +25,14 @@ import br.com.arxcode.tematica.geo.mapeamento.Mapeamento;
  * Testes do {@link SqlGeradorUpdate} — função pura, JUnit Jupiter puro
  * (sem AssertJ — alinhado a {@code CONVENCOES.md} e ao padrão da Story 4.1).
  *
- * <p><strong>Nota sobre fixtures (VAL-4.2-01)</strong>: todos os
- * {@link Mapeamento} construídos diretamente nos testes usam
- * {@link LinkedHashMap} explícito em {@code colunasFixas} para preservar a
- * ordem de iteração (premissa documentada no Javadoc de
- * {@link SqlGeradorUpdate#gerar}).
+ * <p>WHERE do UPDATE usa a chave composta real da tabela principal:
+ * <ul>
+ *   <li>TERRITORIAL: {@code tipocadastro = 1 AND cadastrogeral = <numeric>}</li>
+ *   <li>PREDIAL:     {@code tipocadastro = 1 AND cadastrogeral = <numeric> AND sequencia = <numeric>}</li>
+ * </ul>
+ * Os valores de {@code cadastrogeral} e {@code sequencia} são coagidos via
+ * {@code Tipo.DECIMAL} (sem aspas, sem escape de string — SQL injection impossível
+ * por natureza do tipo numérico).
  */
 class SqlGeradorUpdateTest {
 
@@ -46,6 +49,7 @@ class SqlGeradorUpdateTest {
                 Fluxo.TERRITORIAL,
                 "TABELA_TERRITORIAL_V001.xlsx",
                 "INSCRICAO_IMOBILIARIA",
+                null,
                 fixas,
                 Map.<String, ColunaDinamica>of());
     }
@@ -58,6 +62,7 @@ class SqlGeradorUpdateTest {
                 Fluxo.PREDIAL,
                 "TABELA_PREDIAL_V001.xlsx",
                 "INSCRICAO_IMOBILIARIA",
+                null,
                 fixas,
                 Map.<String, ColunaDinamica>of());
     }
@@ -67,6 +72,7 @@ class SqlGeradorUpdateTest {
                 fluxo,
                 "planilha.xlsx",
                 "INSCRICAO_IMOBILIARIA",
+                null,
                 Map.<String, String>of(),
                 Map.<String, ColunaDinamica>of());
     }
@@ -85,14 +91,14 @@ class SqlGeradorUpdateTest {
 
         @Test
         void mapeamentoNulo_lancaIae() {
-            LinhaMapeada l = new LinhaMapeada("123", Map.of(), Map.of());
+            LinhaMapeada l = new LinhaMapeada("123", null, Map.of(), Map.of());
             assertThrows(IllegalArgumentException.class,
                     () -> gerador.gerar(l, null, Fluxo.TERRITORIAL, coercionador));
         }
 
         @Test
         void fluxoNulo_lancaIae() {
-            LinhaMapeada l = new LinhaMapeada("123", Map.of(), Map.of());
+            LinhaMapeada l = new LinhaMapeada("123", null, Map.of(), Map.of());
             Mapeamento m = mapeamentoTerritorialPadrao();
             assertThrows(IllegalArgumentException.class,
                     () -> gerador.gerar(l, m, null, coercionador));
@@ -100,7 +106,7 @@ class SqlGeradorUpdateTest {
 
         @Test
         void coercionadorNulo_lancaIae() {
-            LinhaMapeada l = new LinhaMapeada("123", Map.of(), Map.of());
+            LinhaMapeada l = new LinhaMapeada("123", null, Map.of(), Map.of());
             Mapeamento m = mapeamentoTerritorialPadrao();
             assertThrows(IllegalArgumentException.class,
                     () -> gerador.gerar(l, m, Fluxo.TERRITORIAL, null));
@@ -117,13 +123,13 @@ class SqlGeradorUpdateTest {
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("AREA_TERRENO", "350");
             celulas.put("TESTADA", "12");
-            LinhaMapeada linha = new LinhaMapeada("00123", celulas, Map.of());
+            LinhaMapeada linha = new LinhaMapeada("123", null, celulas, Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
 
             assertTrue(r.ok(), () -> "esperado ok=true; erros=" + r.erros());
             assertEquals(
-                    "UPDATE tribcadastroimobiliario SET area_terreno = '350', testada = '12' WHERE tribcadastrogeral_idkey = '00123';",
+                    "UPDATE tribcadastroimobiliario SET area_terreno = '350', testada = '12' WHERE tipocadastro = 1 AND cadastrogeral = 123;",
                     r.sql());
             assertEquals(List.of(), r.erros());
         }
@@ -133,14 +139,13 @@ class SqlGeradorUpdateTest {
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("AREA_CONSTRUIDA", "120,5");
             celulas.put("PADRAO", "Médio");
-            LinhaMapeada linha = new LinhaMapeada("00999", celulas, Map.of());
+            LinhaMapeada linha = new LinhaMapeada("999", "1", celulas, Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, mapeamentoPredialPadrao(), Fluxo.PREDIAL, coercionador);
 
             assertTrue(r.ok());
-            // Note: AREA_CONSTRUIDA é coagida como TEXTO nesta story (limitação 4.2 → 4.2.1).
             assertEquals(
-                    "UPDATE tribimobiliariosegmento SET area_construida = '120,5', padrao = 'Médio' WHERE idkey = '00999';",
+                    "UPDATE tribimobiliariosegmento SET area_construida = '120,5', padrao = 'Médio' WHERE tipocadastro = 1 AND cadastrogeral = 999 AND sequencia = 1;",
                     r.sql());
         }
     }
@@ -157,14 +162,14 @@ class SqlGeradorUpdateTest {
         fixas.put("B_HEADER", "b_col");
         Mapeamento m = new Mapeamento(
                 Fluxo.TERRITORIAL, "p.xlsx", "I",
-                fixas, Map.<String, ColunaDinamica>of());
+                null, fixas, Map.<String, ColunaDinamica>of());
 
         Map<String, String> celulas = new LinkedHashMap<>();
         celulas.put("Z_HEADER", "z");
         celulas.put("A_HEADER", "a");
         celulas.put("M_HEADER", "m");
         celulas.put("B_HEADER", "b");
-        LinhaMapeada linha = new LinhaMapeada("777", celulas, Map.of());
+        LinhaMapeada linha = new LinhaMapeada("777", null, celulas, Map.of());
 
         ResultadoUpdate r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
 
@@ -185,13 +190,13 @@ class SqlGeradorUpdateTest {
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("AREA_TERRENO", "100");
             // TESTADA propositadamente ausente
-            LinhaMapeada linha = new LinhaMapeada("X1", celulas, Map.of());
+            LinhaMapeada linha = new LinhaMapeada("1001", null, celulas, Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
 
             assertTrue(r.ok());
             assertEquals(
-                    "UPDATE tribcadastroimobiliario SET area_terreno = '100', testada = NULL WHERE tribcadastrogeral_idkey = 'X1';",
+                    "UPDATE tribcadastroimobiliario SET area_terreno = '100', testada = NULL WHERE tipocadastro = 1 AND cadastrogeral = 1001;",
                     r.sql());
         }
 
@@ -200,28 +205,26 @@ class SqlGeradorUpdateTest {
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("AREA_TERRENO", "");
             celulas.put("TESTADA", "  ");
-            LinhaMapeada linha = new LinhaMapeada("X2", celulas, Map.of());
+            LinhaMapeada linha = new LinhaMapeada("1002", null, celulas, Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
 
             assertTrue(r.ok());
             assertEquals(
-                    "UPDATE tribcadastroimobiliario SET area_terreno = NULL, testada = NULL WHERE tribcadastrogeral_idkey = 'X2';",
+                    "UPDATE tribcadastroimobiliario SET area_terreno = NULL, testada = NULL WHERE tipocadastro = 1 AND cadastrogeral = 1002;",
                     r.sql());
         }
 
         @Test
         void todasCelulasNull_aindaEmiteUpdateValido() {
-            // Decisão de design (T5 Passo 4): "coluna = NULL" é UPDATE válido (zerar
-            // campos é operação legítima). Caso degenerado real é colunasFixas() vazio
-            // (testado em CasoDegenerado abaixo).
-            LinhaMapeada linha = new LinhaMapeada("Y1", Map.of(), Map.of());
+            // "coluna = NULL" é UPDATE válido (zerar campos é operação legítima).
+            LinhaMapeada linha = new LinhaMapeada("1003", null, Map.of(), Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
 
             assertTrue(r.ok(), () -> "esperado UPDATE com NULLs; erros=" + r.erros());
             assertEquals(
-                    "UPDATE tribcadastroimobiliario SET area_terreno = NULL, testada = NULL WHERE tribcadastrogeral_idkey = 'Y1';",
+                    "UPDATE tribcadastroimobiliario SET area_terreno = NULL, testada = NULL WHERE tipocadastro = 1 AND cadastrogeral = 1003;",
                     r.sql());
         }
     }
@@ -234,13 +237,42 @@ class SqlGeradorUpdateTest {
         @ParameterizedTest
         @EnumSource(Fluxo.class)
         void mapeamentoSemColunasFixas_retornaFalha(Fluxo fluxo) {
-            LinhaMapeada linha = new LinhaMapeada("123", Map.of(), Map.of());
+            LinhaMapeada linha = new LinhaMapeada("123", null, Map.of(), Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, mapeamentoVazio(fluxo), fluxo, coercionador);
 
             assertFalse(r.ok());
             assertNull(r.sql());
             assertEquals(List.of("Linha sem colunas fixas a atualizar"), r.erros());
+        }
+
+        @Test
+        void codigoNaoNumerico_retornaFalha() {
+            // cadastrogeral é NUMERIC — valor não-numérico na planilha é erro de dado.
+            Map<String, String> celulas = new LinkedHashMap<>();
+            celulas.put("AREA_TERRENO", "100");
+            celulas.put("TESTADA", "10");
+            LinhaMapeada linha = new LinhaMapeada("NAO_NUMERICO", null, celulas, Map.of());
+
+            ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
+
+            assertFalse(r.ok(), "Código não-numérico deve resultar em falha");
+            assertTrue(r.erros().stream().anyMatch(e -> e.contains("cadastrogeral")),
+                    () -> "Mensagem de erro deve mencionar 'cadastrogeral'; erros=" + r.erros());
+        }
+
+        @Test
+        void predial_sequenciaNaoNumerica_retornaFalha() {
+            Map<String, String> celulas = new LinkedHashMap<>();
+            celulas.put("AREA_CONSTRUIDA", "100");
+            celulas.put("PADRAO", "Alto");
+            LinhaMapeada linha = new LinhaMapeada("900001", "NAO_NUMERICO", celulas, Map.of());
+
+            ResultadoUpdate r = gerador.gerar(linha, mapeamentoPredialPadrao(), Fluxo.PREDIAL, coercionador);
+
+            assertFalse(r.ok(), "Sequência não-numérica deve resultar em falha");
+            assertTrue(r.erros().stream().anyMatch(e -> e.contains("sequencia")),
+                    () -> "Mensagem de erro deve mencionar 'sequencia'; erros=" + r.erros());
         }
     }
 
@@ -249,19 +281,6 @@ class SqlGeradorUpdateTest {
     @Nested
     class FormatoMensagemDeErro {
 
-        /**
-         * <strong>VAL-4.2-02 — estratégia adotada</strong>: como
-         * {@link Coercionador} é {@code final class} e {@code Tipo.TEXTO}
-         * (único tipo usado pelo {@link SqlGeradorUpdate} nesta story) raramente
-         * falha, o caminho de acumulação de erros do {@code SqlGeradorUpdate}
-         * será exercitado plenamente apenas na Story 4.3 (UPSERT, com
-         * {@code DECIMAL}/{@code DATA}/{@code MULTIPLA_ESCOLHA}). Mantemos aqui
-         * um <em>teste documental</em> que valida o <strong>formato exato</strong>
-         * da mensagem de erro contratada pelo AC9 ("Coluna '&lt;header&gt;':
-         * &lt;erro&gt;"), montando manualmente o {@link ResultadoUpdate#falha(List)}
-         * com o formato esperado e asserindo a estrutura. Garante que mudanças
-         * acidentais no formato da mensagem sejam detectadas.
-         */
         @Test
         void formatoCelula_segue_padraoDocumentado() {
             String header = "AREA_TERRENO";
@@ -279,14 +298,13 @@ class SqlGeradorUpdateTest {
 
         @Test
         void formatoCodigoImovel_segue_padraoDocumentado() {
-            String erroCoercao = "valor inválido";
-            String mensagemEsperada = "Código do imóvel: " + erroCoercao;
+            String mensagemEsperada = "Código do imóvel (cadastrogeral): valor 'X' não é decimal válido";
 
             ResultadoUpdate r = ResultadoUpdate.falha(List.of(mensagemEsperada));
 
             assertFalse(r.ok());
-            assertTrue(r.erros().get(0).startsWith("Código do imóvel: "),
-                    () -> "Mensagem deve começar com \"Código do imóvel: \"; obtido: " + r.erros().get(0));
+            assertTrue(r.erros().get(0).startsWith("Código do imóvel (cadastrogeral):"),
+                    () -> "Mensagem deve começar com 'Código do imóvel (cadastrogeral):'; obtido: " + r.erros().get(0));
         }
     }
 
@@ -304,7 +322,9 @@ class SqlGeradorUpdateTest {
             String header1 = m.colunasFixas().keySet().iterator().next();
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put(header1, "valor");
-            LinhaMapeada linha = new LinhaMapeada("ABC", celulas, Map.of());
+            // Para PREDIAL, sequenciaPredial deve ser numérico
+            String seq = fluxo == Fluxo.PREDIAL ? "1" : null;
+            LinhaMapeada linha = new LinhaMapeada("900001", seq, celulas, Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, m, fluxo, coercionador);
 
@@ -318,141 +338,52 @@ class SqlGeradorUpdateTest {
             Mapeamento m = fluxo == Fluxo.TERRITORIAL
                     ? mapeamentoTerritorialPadrao()
                     : mapeamentoPredialPadrao();
-            LinhaMapeada linha = new LinhaMapeada("ABC", Map.of(), Map.of());
+            String seq = fluxo == Fluxo.PREDIAL ? "1" : null;
+            LinhaMapeada linha = new LinhaMapeada("900001", seq, Map.of(), Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, m, fluxo, coercionador);
 
             assertTrue(r.ok());
             assertSemInsert(r.sql());
-        }
-
-        @ParameterizedTest
-        @EnumSource(Fluxo.class)
-        void codigoComAspas_naoEmiteInsert(Fluxo fluxo) {
-            Mapeamento m = fluxo == Fluxo.TERRITORIAL
-                    ? mapeamentoTerritorialPadrao()
-                    : mapeamentoPredialPadrao();
-            String header1 = m.colunasFixas().keySet().iterator().next();
-            Map<String, String> celulas = new LinkedHashMap<>();
-            celulas.put(header1, "v");
-            LinhaMapeada linha = new LinhaMapeada("O'Brien", celulas, Map.of());
-
-            ResultadoUpdate r = gerador.gerar(linha, m, fluxo, coercionador);
-
-            assertTrue(r.ok());
-            assertSemInsert(r.sql());
-        }
-
-        @ParameterizedTest
-        @EnumSource(Fluxo.class)
-        void tentativaInjectionNoCodigo_naoEmiteInsert(Fluxo fluxo) {
-            Mapeamento m = fluxo == Fluxo.TERRITORIAL
-                    ? mapeamentoTerritorialPadrao()
-                    : mapeamentoPredialPadrao();
-            String header1 = m.colunasFixas().keySet().iterator().next();
-            Map<String, String> celulas = new LinkedHashMap<>();
-            celulas.put(header1, "v");
-            LinhaMapeada linha = new LinhaMapeada("1'; INSERT INTO tribcadastroimobiliario VALUES (1); --",
-                    celulas, Map.of());
-
-            ResultadoUpdate r = gerador.gerar(linha, m, fluxo, coercionador);
-
-            assertTrue(r.ok());
-            // Mesmo com o substring "INSERT INTO tribcadastroimobiliario" injetada
-            // pelo atacante no valor do código, o SQL **gerado** começa com UPDATE
-            // e o conteúdo viajou como literal entre aspas (escapado) — o SQL
-            // executado pelo banco verá apenas um UPDATE. Para esta asserção
-            // CON-03, verificamos que o SQL gerado começa com UPDATE; o substring
-            // "INSERT INTO" pode aparecer dentro do literal escapado, e isso é
-            // seguro (literal inerte, não comando).
-            assertTrue(r.sql().startsWith("UPDATE "),
-                    () -> "SQL deve começar com UPDATE; obtido: " + r.sql());
-            // E não pode haver um INSERT INTO **fora** do literal — o SQL termina
-            // com ';' e tem apenas um statement.
-            assertEquals(1, contarStatements(r.sql()));
         }
 
         private static void assertSemInsert(String sql) {
             assertFalse(sql.toUpperCase(Locale.ROOT).contains("INSERT INTO"),
                     () -> "SQL não deve conter 'INSERT INTO'; obtido: " + sql);
         }
-
-        private static int contarStatements(String sql) {
-            // Conta apenas o ';' final: SQL gerado é um único statement em uma linha.
-            // Aspas simples no literal estão duplicadas (escapadas); ';' dentro do
-            // literal não fecha statement no PostgreSQL (ainda dentro de aspas).
-            return sql.endsWith(";") ? 1 : 0;
-        }
     }
 
-    // ---------- AC11: escape no WHERE ----------
+    // ---------- WHERE usa chave composta real ----------
 
-    @Nested
-    class EscapeNoWhere {
-
-        @Test
-        void codigoComAspaSimples_escapadoNoWhere() {
-            Map<String, String> celulas = new LinkedHashMap<>();
-            celulas.put("AREA_TERRENO", "100");
-            celulas.put("TESTADA", "10");
-            LinhaMapeada linha = new LinhaMapeada("O'Brien", celulas, Map.of());
-
-            ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
-
-            assertTrue(r.ok());
-            assertTrue(r.sql().contains("WHERE tribcadastrogeral_idkey = 'O''Brien';"),
-                    () -> "WHERE deve escapar aspas; obtido: " + r.sql());
-        }
-
-        @Test
-        void tentativaInjectionNoCodigo_viraLiteralInerte() {
-            Map<String, String> celulas = new LinkedHashMap<>();
-            celulas.put("AREA_TERRENO", "100");
-            celulas.put("TESTADA", "10");
-            LinhaMapeada linha = new LinhaMapeada("1'; DROP TABLE x; --", celulas, Map.of());
-
-            ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
-
-            assertTrue(r.ok());
-            assertTrue(r.sql().contains("WHERE tribcadastrogeral_idkey = '1''; DROP TABLE x; --';"),
-                    () -> "Injection deve virar literal inerte escapado; obtido: " + r.sql());
-        }
-
-        @Test
-        void valorComAspasNaCelulaFixa_escapadoNoSet() {
-            // Cobertura defensiva: aspas em cell content também são escapadas pelo Coercionador.
-            Map<String, String> celulas = new LinkedHashMap<>();
-            celulas.put("AREA_TERRENO", "x'y");
-            celulas.put("TESTADA", "10");
-            LinhaMapeada linha = new LinhaMapeada("ABC", celulas, Map.of());
-
-            ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
-
-            assertTrue(r.ok());
-            assertTrue(r.sql().contains("area_terreno = 'x''y'"),
-                    () -> "Aspas em célula fixa devem ser escapadas; obtido: " + r.sql());
-        }
-    }
-
-    // ---------- AC2 indireto: ambos os fluxos usam a coluna chave correta ----------
-
-    @ParameterizedTest
-    @EnumSource(Fluxo.class)
-    void colunaChave_eUsadaNoWhere_paraCadaFluxo(Fluxo fluxo) {
-        Mapeamento m = fluxo == Fluxo.TERRITORIAL
-                ? mapeamentoTerritorialPadrao()
-                : mapeamentoPredialPadrao();
-        String header1 = m.colunasFixas().keySet().iterator().next();
+    @Test
+    void territorial_whereUsaPkComposta() {
         Map<String, String> celulas = new LinkedHashMap<>();
-        celulas.put(header1, "v");
-        LinhaMapeada linha = new LinhaMapeada("ABC", celulas, Map.of());
+        celulas.put("AREA_TERRENO", "v");
+        celulas.put("TESTADA", "10");
+        LinhaMapeada linha = new LinhaMapeada("900001", null, celulas, Map.of());
 
-        ResultadoUpdate r = gerador.gerar(linha, m, fluxo, coercionador);
+        ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
 
         assertTrue(r.ok());
-        assertTrue(r.sql().contains("WHERE " + fluxo.colunaChave() + " = 'ABC';"),
-                () -> "WHERE deve usar colunaChave do fluxo " + fluxo + "; obtido: " + r.sql());
-        assertTrue(r.sql().startsWith("UPDATE " + fluxo.tabelaPrincipal() + " "),
-                () -> "UPDATE deve usar tabelaPrincipal do fluxo " + fluxo + "; obtido: " + r.sql());
+        assertTrue(r.sql().contains("WHERE tipocadastro = 1 AND cadastrogeral = 900001;"),
+                () -> "WHERE TERRITORIAL deve usar PK composta sem aspas; obtido: " + r.sql());
+        assertTrue(r.sql().startsWith("UPDATE tribcadastroimobiliario "),
+                () -> "UPDATE deve usar tabela TERRITORIAL; obtido: " + r.sql());
+    }
+
+    @Test
+    void predial_whereUsaPkCompostaComSequencia() {
+        Map<String, String> celulas = new LinkedHashMap<>();
+        celulas.put("AREA_CONSTRUIDA", "v");
+        celulas.put("PADRAO", "Alto");
+        LinhaMapeada linha = new LinhaMapeada("900001", "2", celulas, Map.of());
+
+        ResultadoUpdate r = gerador.gerar(linha, mapeamentoPredialPadrao(), Fluxo.PREDIAL, coercionador);
+
+        assertTrue(r.ok());
+        assertTrue(r.sql().contains("WHERE tipocadastro = 1 AND cadastrogeral = 900001 AND sequencia = 2;"),
+                () -> "WHERE PREDIAL deve incluir sequencia sem aspas; obtido: " + r.sql());
+        assertTrue(r.sql().startsWith("UPDATE tribimobiliariosegmento "),
+                () -> "UPDATE deve usar tabela PREDIAL; obtido: " + r.sql());
     }
 }

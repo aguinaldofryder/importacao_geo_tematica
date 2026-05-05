@@ -15,6 +15,14 @@ import br.com.arxcode.tematica.geo.dominio.Fluxo;
  * cross-field entre {@link ColunaDinamica#status()} e demais campos opcionais
  * é responsabilidade da Story 3.3 ({@code MapeamentoValidador}).
  *
+ * <p><strong>Campo {@code colunaSequenciaPredial}:</strong> presente apenas para
+ * o fluxo {@link Fluxo#PREDIAL}, onde a PK de {@code tribimobiliariosegmento}
+ * é composta por {@code (tipocadastro, cadastrogeral, sequencia)}. Contém o
+ * nome do header da planilha que carrega o valor de {@code sequencia}.
+ * Para {@link Fluxo#TERRITORIAL} este campo é {@code null}.
+ * Jackson desserializa JSON sem a chave como {@code null} — o construtor
+ * canônico não valida nem impõe default, deixando a semântica ao {@code ImportarCommand}.
+ *
  * <p><strong>Defesas do construtor:</strong>
  * <ul>
  *   <li>{@code fluxo}, {@code planilha} e {@code colunaCodigoImovel} não-nulos
@@ -33,6 +41,7 @@ public record Mapeamento(
         Fluxo fluxo,
         String planilha,
         String colunaCodigoImovel,
+        String colunaSequenciaPredial,
         Map<String, String> colunasFixas,
         Map<String, ColunaDinamica> colunasDinamicas) {
 

@@ -136,6 +136,7 @@ public class AutoMapeador {
                 entrada.fluxo(),
                 entrada.nomeArquivoPlanilha(),
                 entrada.classificacao().codigo(),
+                entrada.colunaSequenciaPredial(),
                 entrada.classificacao().fixas(),
                 Collections.unmodifiableMap(dinamicas));
     }

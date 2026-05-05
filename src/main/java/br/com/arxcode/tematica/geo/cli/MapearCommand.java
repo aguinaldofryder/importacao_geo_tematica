@@ -226,6 +226,7 @@ public class MapearCommand implements Callable<Integer> {
         // Resoluções a partir da config
         ImportacaoConfig.Mapeamento cfgMap = importacaoConfig.mapeamento();
         String nomeColunaCodigo = codigoImovelConfig.por(fluxo);
+        String nomeColunaCSequencia = fluxo == Fluxo.PREDIAL ? codigoImovelConfig.sequenciaPredial() : null;
         Set<String> colunasFixas = colunasFixasConfig.por(fluxo);
 
         // (4) Abrir planilha + Fase 1 ----------------------------------------
@@ -257,6 +258,7 @@ public class MapearCommand implements Callable<Integer> {
                 classificacao,
                 arquivo.getFileName().toString(),
                 fluxo,
+                nomeColunaCSequencia,
                 campos,
                 alternativaRepository::listarPorCampo,
                 header -> distinctMap.getOrDefault(header, Set.of())
@@ -399,6 +401,7 @@ public class MapearCommand implements Callable<Integer> {
             novo.fluxo(),
             novo.planilha(),
             novo.colunaCodigoImovel(),
+            novo.colunaSequenciaPredial(),
             novo.colunasFixas(),
             java.util.Collections.unmodifiableMap(resultado));
     }

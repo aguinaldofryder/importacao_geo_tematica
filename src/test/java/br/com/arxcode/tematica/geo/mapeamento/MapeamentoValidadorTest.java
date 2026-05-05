@@ -41,7 +41,7 @@ class MapeamentoValidadorTest {
     }
 
     private static Mapeamento mapeamento(Map<String, String> fixas, Map<String, ColunaDinamica> dinamicas) {
-        return new Mapeamento(Fluxo.TERRITORIAL, "planilha.xlsx", "MATRICULA", fixas, dinamicas);
+        return new Mapeamento(Fluxo.TERRITORIAL, "planilha.xlsx", "MATRICULA", null, fixas, dinamicas);
     }
 
     // ---------- (a) Mapeamento totalmente válido — resultado valido=true ----------

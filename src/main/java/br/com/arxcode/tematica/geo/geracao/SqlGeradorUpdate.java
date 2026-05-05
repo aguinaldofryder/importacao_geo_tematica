@@ -119,15 +119,24 @@ public final class SqlGeradorUpdate {
             }
         }
 
-        // Passo 2: coagir o codigoImovel como TEXTO (defesa em profundidade —
-        // TEXTO sempre passa para entradas não-blank, que é a invariante de
-        // LinhaMapeada; mas se um dia falhar, acumula como erro).
-        ResultadoCoercao rcChave = coercionador.coagir(linha.codigoImovel(), Tipo.TEXTO, null);
-        String literalChave = null;
+        // Passo 2: coagir o codigoImovel como DECIMAL — cadastrogeral é NUMERIC no banco.
+        ResultadoCoercao rcChave = coercionador.coagir(linha.codigoImovel(), Tipo.DECIMAL, null);
+        String literalCadastrogeral = null;
         if (rcChave.ok()) {
-            literalChave = rcChave.literalSql();
+            literalCadastrogeral = rcChave.literalSql();
         } else {
-            erros.add("Código do imóvel: " + rcChave.erro());
+            erros.add("Código do imóvel (cadastrogeral): " + rcChave.erro());
+        }
+
+        // Passo 2b: para PREDIAL, coagir sequenciaPredial como DECIMAL.
+        String literalSequencia = null;
+        if (fluxo == Fluxo.PREDIAL) {
+            ResultadoCoercao rcSeq = coercionador.coagir(linha.sequenciaPredial(), Tipo.DECIMAL, null);
+            if (rcSeq.ok()) {
+                literalSequencia = rcSeq.literalSql();
+            } else {
+                erros.add("Sequência predial (sequencia): " + rcSeq.erro());
+            }
         }
 
         // Passo 3: se acumulamos erros, abandona o UPDATE inteiro (AC9).
@@ -141,10 +150,17 @@ public final class SqlGeradorUpdate {
             paresSet.add(entry.getKey() + " = " + entry.getValue());
         }
 
-        // Passo 5: monta o SQL final em uma única linha terminada em ';'.
+        // Passo 5: monta o WHERE com a chave composta real da tabela principal.
+        // TERRITORIAL: tipocadastro = 1 AND cadastrogeral = <numeric>
+        // PREDIAL:     tipocadastro = 1 AND cadastrogeral = <numeric> AND sequencia = <numeric>
+        String where = fluxo == Fluxo.PREDIAL
+                ? "tipocadastro = 1 AND cadastrogeral = " + literalCadastrogeral + " AND sequencia = " + literalSequencia
+                : "tipocadastro = 1 AND cadastrogeral = " + literalCadastrogeral;
+
+        // Passo 6: monta o SQL final em uma única linha terminada em ';'.
         String sql = "UPDATE " + fluxo.tabelaPrincipal()
                 + " SET " + String.join(", ", paresSet)
-                + " WHERE " + fluxo.colunaChave() + " = " + literalChave + ";";
+                + " WHERE " + where + ";";
 
         return ResultadoUpdate.sucesso(sql);
     }

@@ -45,6 +45,7 @@ class MapeamentoStoreTest {
                 Fluxo.TERRITORIAL,
                 "TABELA_TERRITORIAL_V001.xlsx",
                 "MATRICULA",
+                null,
                 Map.of("AREA_TERRENO", "area_terreno", "TESTADA", "testada_principal"),
                 Map.of(
                         "TIPO_MURO", new ColunaDinamica(

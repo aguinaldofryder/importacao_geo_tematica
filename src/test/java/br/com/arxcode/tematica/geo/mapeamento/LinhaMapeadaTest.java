@@ -23,7 +23,7 @@ class LinhaMapeadaTest {
         Map<String, String> dinamicas = new LinkedHashMap<>();
         dinamicas.put("USO", "Residencial");
 
-        LinhaMapeada l = new LinhaMapeada("12345", fixas, dinamicas);
+        LinhaMapeada l = new LinhaMapeada("12345", null, fixas, dinamicas);
 
         assertEquals("12345", l.codigoImovel());
         assertEquals(Map.of("AREA", "100"), l.celulasFixas());
@@ -35,25 +35,25 @@ class LinhaMapeadaTest {
     @ValueSource(strings = { " ", "  ", "\t", "\n" })
     void construtor_codigoImovelNullOuBlank_lancaIae(String codigo) {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> new LinhaMapeada(codigo, Map.of(), Map.of()));
+                () -> new LinhaMapeada(codigo, null, Map.of(), Map.of()));
         assertEquals("Código do imóvel não pode ser nulo ou em branco.", ex.getMessage());
     }
 
     @Test
     void construtor_celulasFixasNull_viraMapVazio() {
-        LinhaMapeada l = new LinhaMapeada("123", null, Map.of());
+        LinhaMapeada l = new LinhaMapeada("123", null, null, Map.of());
         assertEquals(Map.of(), l.celulasFixas());
     }
 
     @Test
     void construtor_celulasDinamicasNull_viraMapVazio() {
-        LinhaMapeada l = new LinhaMapeada("123", Map.of(), null);
+        LinhaMapeada l = new LinhaMapeada("123", null, Map.of(), null);
         assertEquals(Map.of(), l.celulasDinamicas());
     }
 
     @Test
     void construtor_ambosMapsNull_viramVazios() {
-        LinhaMapeada l = new LinhaMapeada("123", null, null);
+        LinhaMapeada l = new LinhaMapeada("123", null, null, null);
         assertSame(Map.of(), l.celulasFixas());
         assertSame(Map.of(), l.celulasDinamicas());
     }
@@ -65,20 +65,20 @@ class LinhaMapeadaTest {
         fixas.put("A", "2");
         fixas.put("M", "3");
 
-        LinhaMapeada l = new LinhaMapeada("123", fixas, null);
+        LinhaMapeada l = new LinhaMapeada("123", null, fixas, null);
 
         assertEquals(List.of("Z", "A", "M"), new ArrayList<>(l.celulasFixas().keySet()));
     }
 
     @Test
     void celulasFixas_imutavel_naoAceitaPut() {
-        LinhaMapeada l = new LinhaMapeada("123", new LinkedHashMap<>(Map.of("A", "1")), null);
+        LinhaMapeada l = new LinhaMapeada("123", null, new LinkedHashMap<>(Map.of("A", "1")), null);
         assertThrows(UnsupportedOperationException.class, () -> l.celulasFixas().put("B", "2"));
     }
 
     @Test
     void celulasDinamicas_imutavel_naoAceitaPut() {
-        LinhaMapeada l = new LinhaMapeada("123", null, new LinkedHashMap<>(Map.of("X", "v")));
+        LinhaMapeada l = new LinhaMapeada("123", null, null, new LinkedHashMap<>(Map.of("X", "v")));
         assertThrows(UnsupportedOperationException.class, () -> l.celulasDinamicas().put("Y", "v2"));
     }
 
@@ -86,7 +86,7 @@ class LinhaMapeadaTest {
     void copia_defensiva_isolaMutacaoExterna() {
         Map<String, String> fixas = new LinkedHashMap<>();
         fixas.put("A", "1");
-        LinhaMapeada l = new LinhaMapeada("123", fixas, null);
+        LinhaMapeada l = new LinhaMapeada("123", null, fixas, null);
 
         // Mutar o map original não afeta a cópia interna.
         fixas.put("B", "2");

@@ -342,8 +342,29 @@ public class ImportarCommand implements Callable<Integer> {
             return;
         }
 
+        // Extrair sequência predial (apenas para fluxo PREDIAL) ───────────────
+        String sequenciaPredial = null;
+        if (fluxo == Fluxo.PREDIAL) {
+            String colSeq = mapeamento.colunaSequenciaPredial();
+            if (colSeq == null || colSeq.isBlank()) {
+                logErros.registrarLinhaPulada(numLinha, codigoImovel,
+                        "Coluna de sequência predial não configurada no mapeamento (colunaSequenciaPredial ausente)");
+                resumo.registrarErro();
+                barra.atualizar(linhaExcel[0] - 1, resumo.erro());
+                return;
+            }
+            sequenciaPredial = row.getOrDefault(colSeq, "").trim();
+            if (sequenciaPredial.isEmpty()) {
+                logErros.registrarLinhaPulada(numLinha, codigoImovel,
+                        "Sequência predial vazia ou ausente na coluna '" + colSeq + "'");
+                resumo.registrarErro();
+                barra.atualizar(linhaExcel[0] - 1, resumo.erro());
+                return;
+            }
+        }
+
         // Verificar existência do imóvel no banco (AC5) ───────────────────────
-        if (!existenciaRepository.existeImovel(codigoImovel, fluxo)) {
+        if (!existenciaRepository.existeImovel(codigoImovel, sequenciaPredial, fluxo)) {
             logErros.registrarLinhaPulada(numLinha, codigoImovel,
                     "Imóvel não encontrado em " + fluxo.tabelaPrincipal());
             resumo.registrarErro();
@@ -364,7 +385,7 @@ public class ImportarCommand implements Callable<Integer> {
             }
         }
 
-        LinhaMapeada linhaMapeada = new LinhaMapeada(codigoImovel, celulasFixas, celulasDinamicas);
+        LinhaMapeada linhaMapeada = new LinhaMapeada(codigoImovel, sequenciaPredial, celulasFixas, celulasDinamicas);
         boolean houveErroNaLinha = false;
 
         // Geração UPDATE (AC7) ─────────────────────────────────────────────────

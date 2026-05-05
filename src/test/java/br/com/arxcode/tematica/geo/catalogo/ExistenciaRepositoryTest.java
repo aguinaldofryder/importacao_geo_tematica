@@ -20,9 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Testes de integração do {@link ExistenciaRepository} com Testcontainers (Story 4.5 AC5).
  *
- * <p>Verifica os dois ramos principais (imóvel presente e ausente) e o
- * comportamento defensivo para código nulo, usando seed JDBC mínimo em
- * {@code aise.tribcadastroimobiliario}.
+ * <p>Cobre TERRITORIAL (PK de 2 colunas) e PREDIAL (PK de 3 colunas: tipocadastro,
+ * cadastrogeral, sequencia).
  */
 @QuarkusTest
 @QuarkusTestResource(value = PostgresResource.class, restrictToAnnotatedClass = true)
@@ -34,25 +33,40 @@ class ExistenciaRepositoryTest {
     @Inject
     Instance<DataSource> dataSource;
 
-    // DDL usa NUMERIC para tribcadastrogeral_idkey, espelhando o schema de produção.
-    // O teste anterior usava VARCHAR(50), o que mascarava o bug onde ps.setString()
-    // falhava contra a coluna numeric real (Story 4.5 bug fix).
-    static final String DDL_TABELA =
+    static final String CODIGO_EXISTENTE = "900001";
+    static final String SEQUENCIA_EXISTENTE = "1";
+
+    static final String DDL_TERRITORIAL =
             "CREATE TABLE IF NOT EXISTS aise.tribcadastroimobiliario ("
-            + "id BIGSERIAL PRIMARY KEY, "
-            + "tribcadastrogeral_idkey NUMERIC"
+            + "tipocadastro SMALLINT NOT NULL DEFAULT 1, "
+            + "cadastrogeral NUMERIC NOT NULL, "
+            + "PRIMARY KEY (tipocadastro, cadastrogeral)"
             + ");";
 
-    static final String CODIGO_EXISTENTE = "900001";
+    static final String DDL_PREDIAL =
+            "CREATE TABLE IF NOT EXISTS aise.tribimobiliariosegmento ("
+            + "tipocadastro SMALLINT NOT NULL DEFAULT 1, "
+            + "cadastrogeral NUMERIC NOT NULL, "
+            + "sequencia NUMERIC NOT NULL, "
+            + "PRIMARY KEY (tipocadastro, cadastrogeral, sequencia)"
+            + ");";
 
     @BeforeEach
     void setUp() throws Exception {
         try (Connection c = dataSource.get().getConnection(); Statement s = c.createStatement()) {
-            s.execute(DDL_TABELA);
+            s.execute(DDL_TERRITORIAL);
+            s.execute(DDL_PREDIAL);
+            // seed territorial
             s.execute("DELETE FROM aise.tribcadastroimobiliario "
-                    + "WHERE tribcadastrogeral_idkey = " + CODIGO_EXISTENTE);
-            s.execute("INSERT INTO aise.tribcadastroimobiliario (tribcadastrogeral_idkey) "
-                    + "VALUES (" + CODIGO_EXISTENTE + ")");
+                    + "WHERE tipocadastro = 1 AND cadastrogeral = " + CODIGO_EXISTENTE);
+            s.execute("INSERT INTO aise.tribcadastroimobiliario (tipocadastro, cadastrogeral) "
+                    + "VALUES (1, " + CODIGO_EXISTENTE + ")");
+            // seed predial
+            s.execute("DELETE FROM aise.tribimobiliariosegmento "
+                    + "WHERE tipocadastro = 1 AND cadastrogeral = " + CODIGO_EXISTENTE
+                    + " AND sequencia = " + SEQUENCIA_EXISTENTE);
+            s.execute("INSERT INTO aise.tribimobiliariosegmento (tipocadastro, cadastrogeral, sequencia) "
+                    + "VALUES (1, " + CODIGO_EXISTENTE + ", " + SEQUENCIA_EXISTENTE + ")");
         }
     }
 
@@ -60,32 +74,49 @@ class ExistenciaRepositoryTest {
     void tearDown() throws Exception {
         try (Connection c = dataSource.get().getConnection(); Statement s = c.createStatement()) {
             s.execute("DELETE FROM aise.tribcadastroimobiliario "
-                    + "WHERE tribcadastrogeral_idkey = " + CODIGO_EXISTENTE);
+                    + "WHERE tipocadastro = 1 AND cadastrogeral = " + CODIGO_EXISTENTE);
+            s.execute("DELETE FROM aise.tribimobiliariosegmento "
+                    + "WHERE tipocadastro = 1 AND cadastrogeral = " + CODIGO_EXISTENTE);
         }
     }
 
-    /** AC5 Teste 1: imóvel seeded deve ser encontrado no fluxo TERRITORIAL. */
+    // ── TERRITORIAL ──────────────────────────────────────────────────────────
+
     @Test
-    void deveRetornarTrueParaImovelExistente() {
-        assertTrue(repo.existeImovel(CODIGO_EXISTENTE, Fluxo.TERRITORIAL),
+    void territorial_imovelExistente_retornaTrue() {
+        assertTrue(repo.existeImovel(CODIGO_EXISTENTE, null, Fluxo.TERRITORIAL),
                 "Imóvel seeded deve ser encontrado");
     }
 
-    /** AC5 Teste 2: código não presente na tabela deve retornar false. */
     @Test
-    void deveRetornarFalseParaImovelInexistente() {
-        assertFalse(repo.existeImovel("999999999", Fluxo.TERRITORIAL),
+    void territorial_imovelInexistente_retornaFalse() {
+        assertFalse(repo.existeImovel("999999999", null, Fluxo.TERRITORIAL),
                 "Código inexistente não deve ser encontrado");
     }
 
-    /**
-     * AC5 Teste 3: código nulo — {@code PreparedStatement.setString(1, null)} é válido JDBC;
-     * {@code CAST(NULL AS numeric)} retorna NULL e {@code WHERE col = NULL} avalia para
-     * UNKNOWN (não TRUE), portanto não casa nenhuma linha.
-     */
     @Test
-    void deveRetornarFalseParaCodigoNulo() {
-        assertFalse(repo.existeImovel(null, Fluxo.TERRITORIAL),
-                "Código nulo não deve encontrar imóvel (CAST(NULL AS numeric) não casa nenhuma linha)");
+    void territorial_codigoNulo_retornaFalse() {
+        assertFalse(repo.existeImovel(null, null, Fluxo.TERRITORIAL),
+                "Código nulo não deve encontrar imóvel");
+    }
+
+    // ── PREDIAL ───────────────────────────────────────────────────────────────
+
+    @Test
+    void predial_imovelExistente_retornaTrue() {
+        assertTrue(repo.existeImovel(CODIGO_EXISTENTE, SEQUENCIA_EXISTENTE, Fluxo.PREDIAL),
+                "Segmento seeded deve ser encontrado");
+    }
+
+    @Test
+    void predial_imovelInexistente_retornaFalse() {
+        assertFalse(repo.existeImovel(CODIGO_EXISTENTE, "99", Fluxo.PREDIAL),
+                "Sequência inexistente não deve ser encontrada");
+    }
+
+    @Test
+    void predial_codigoNulo_retornaFalse() {
+        assertFalse(repo.existeImovel(null, SEQUENCIA_EXISTENTE, Fluxo.PREDIAL),
+                "Código nulo não deve encontrar segmento");
     }
 }

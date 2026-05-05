@@ -85,14 +85,14 @@ class ImportarCommandTest {
 
     /**
      * DDL mínimo — apenas as colunas utilizadas pelas fixtures de teste.
-     * {@code tribcadastrogeral_idkey} é NUMERIC para espelhar o schema de produção
-     * (Story 6.1: o {@code ExistenciaRepository} usa {@code CAST(? AS numeric)}).
+     * Espelha a chave composta real: tipocadastro + cadastrogeral (NUMERIC).
      */
     static final String DDL =
             "CREATE TABLE IF NOT EXISTS aise.tribcadastroimobiliario ("
-            + "id BIGSERIAL PRIMARY KEY, "
-            + "tribcadastrogeral_idkey NUMERIC, "
-            + "area_terreno VARCHAR(100)"
+            + "tipocadastro SMALLINT NOT NULL DEFAULT 1, "
+            + "cadastrogeral NUMERIC NOT NULL, "
+            + "area_terreno VARCHAR(100), "
+            + "PRIMARY KEY (tipocadastro, cadastrogeral)"
             + ");";
 
     /** Código presente 1 (numérico, improvávelmente existente no banco real). */
@@ -108,11 +108,11 @@ class ImportarCommandTest {
         try (Connection c = dataSource.get().getConnection(); Statement s = c.createStatement()) {
             s.execute(DDL);
             s.execute("DELETE FROM aise.tribcadastroimobiliario "
-                    + "WHERE tribcadastrogeral_idkey IN (900001, 900002)");
-            s.execute("INSERT INTO aise.tribcadastroimobiliario (tribcadastrogeral_idkey) "
-                    + "VALUES (900001)");
-            s.execute("INSERT INTO aise.tribcadastroimobiliario (tribcadastrogeral_idkey) "
-                    + "VALUES (900002)");
+                    + "WHERE tipocadastro = 1 AND cadastrogeral IN (900001, 900002)");
+            s.execute("INSERT INTO aise.tribcadastroimobiliario (tipocadastro, cadastrogeral) "
+                    + "VALUES (1, 900001)");
+            s.execute("INSERT INTO aise.tribcadastroimobiliario (tipocadastro, cadastrogeral) "
+                    + "VALUES (1, 900002)");
         }
         // Limpar artefatos anteriores no diretório de saída
         if (Files.exists(OUTPUT_DIR)) {
@@ -134,7 +134,7 @@ class ImportarCommandTest {
     void tearDown() throws Exception {
         try (Connection c = dataSource.get().getConnection(); Statement s = c.createStatement()) {
             s.execute("DELETE FROM aise.tribcadastroimobiliario "
-                    + "WHERE tribcadastrogeral_idkey IN (900001, 900002)");
+                    + "WHERE tipocadastro = 1 AND cadastrogeral IN (900001, 900002)");
         }
     }
 
@@ -160,6 +160,7 @@ class ImportarCommandTest {
             Fluxo.TERRITORIAL,
             "planilha-test.xlsx",
             "MATRICULA",
+            null,
             Map.of("AREA_TERRENO", "area_terreno"),
             Map.of()
         );
@@ -313,6 +314,7 @@ class ImportarCommandTest {
             Fluxo.TERRITORIAL,
             "planilha-test.xlsx",
             "MATRICULA",
+            null,
             Map.of("AREA_TERRENO", "area_terreno"),
             Map.of("COLUNA_NOVA", new ColunaDinamica(
                     StatusMapeamento.PENDENTE, null, null, null, "Não mapeado automaticamente", null))

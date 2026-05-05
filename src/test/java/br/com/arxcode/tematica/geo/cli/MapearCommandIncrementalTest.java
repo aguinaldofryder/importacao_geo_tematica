@@ -169,7 +169,7 @@ class MapearCommandIncrementalTest {
         dinamicas.put("TIPO_MURO", tipoMuroPendente);
         Mapeamento existente = new Mapeamento(
             Fluxo.TERRITORIAL, "planilha-incremental.xlsx", "MATRICULA",
-            Map.of("AREA_TERRENO", "area_terreno"), dinamicas);
+            null, Map.of("AREA_TERRENO", "area_terreno"), dinamicas);
         store().salvar(existente, saida);
 
         ResultadoExec r = executar(
@@ -214,7 +214,7 @@ class MapearCommandIncrementalTest {
             "Nenhum campo encontrado com descricao='TIPO_MURO'", null));
         Mapeamento existente = new Mapeamento(
             Fluxo.TERRITORIAL, "planilha-incremental.xlsx", "MATRICULA",
-            Map.of(), dinamicas);
+            null, Map.of(), dinamicas);
         store().salvar(existente, saida);
 
         ResultadoExec r = executar(
@@ -267,7 +267,7 @@ class MapearCommandIncrementalTest {
         dinamicas.put("TIPO_MURO", tipoMuroPendente);
         Mapeamento existente = new Mapeamento(
             Fluxo.TERRITORIAL, "planilha-tijolo.xlsx", "MATRICULA",
-            Map.of("AREA_TERRENO", "area_terreno"), dinamicas);
+            null, Map.of("AREA_TERRENO", "area_terreno"), dinamicas);
         store().salvar(existente, saida);
 
         ResultadoExec r = executar(

@@ -83,7 +83,7 @@ class AutoMapeadorTest {
                 "TIPO_MURO", linkedSet("ALVENARIA", "MADEIRA"));
 
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "TABELA_TERRITORIAL_V001.xlsx", Fluxo.TERRITORIAL,
+                cls, "TABELA_TERRITORIAL_V001.xlsx", Fluxo.TERRITORIAL, null,
                 campos, alternativasMapToFn(alternativas), distinctMapToFn(distinct));
 
         Mapeamento m = new AutoMapeador().mapear(entrada);
@@ -119,7 +119,7 @@ class AutoMapeadorTest {
                 "PADRAO_ACABAMENTO", linkedSet("BAIXO", "MEDIO", "ALTO"));
 
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "TABELA_PREDIAL_V001.xlsx", Fluxo.PREDIAL,
+                cls, "TABELA_PREDIAL_V001.xlsx", Fluxo.PREDIAL, null,
                 campos, alternativasMapToFn(alternativas), distinctMapToFn(distinct));
 
         Mapeamento m = new AutoMapeador().mapear(entrada);
@@ -140,7 +140,7 @@ class AutoMapeadorTest {
         Classificacao cls = classificacao("MATRICULA", fixas, List.of());
 
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, List.of(),
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, List.of(),
                 idC -> List.of(), h -> Set.of());
 
         Mapeamento m = new AutoMapeador().mapear(entrada);
@@ -158,7 +158,7 @@ class AutoMapeadorTest {
         List<Campo> campos = List.of(campo(7, "OBSERVACAO", Tipo.TEXTO));
 
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, campos,
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, campos,
                 idC -> List.of(), h -> Set.of());
 
         Mapeamento m = new AutoMapeador().mapear(entrada);
@@ -182,7 +182,7 @@ class AutoMapeadorTest {
                 campo(15, "OBSERVACAO", Tipo.TEXTO));
 
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, campos,
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, campos,
                 idC -> List.of(), h -> Set.of());
 
         Mapeamento m = new AutoMapeador().mapear(entrada);
@@ -203,7 +203,7 @@ class AutoMapeadorTest {
     void cenario_f_nenhumMatch_pendenteFormatoCanonico() {
         Classificacao cls = classificacao("M", Map.of(), List.of("COLUNA_NOVA"));
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, List.of(),
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, List.of(),
                 idC -> List.of(), h -> Set.of());
 
         Mapeamento m = new AutoMapeador().mapear(entrada);
@@ -226,7 +226,7 @@ class AutoMapeadorTest {
         Map<String, Set<String>> dist = Map.of("TIPO_MURO", linkedSet("ALVENARIA", "MADEIRA"));
 
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, campos,
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, campos,
                 alternativasMapToFn(alts), distinctMapToFn(dist));
 
         ColunaDinamica cd = new AutoMapeador().mapear(entrada).colunasDinamicas().get("TIPO_MURO");
@@ -249,7 +249,7 @@ class AutoMapeadorTest {
                 "TIPO_MURO", linkedSet("ALVENARIA", "MADEIRA", "DESCONHECIDO"));
 
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, campos,
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, campos,
                 alternativasMapToFn(alts), distinctMapToFn(dist));
 
         ColunaDinamica cd = new AutoMapeador().mapear(entrada).colunasDinamicas().get("TIPO_MURO");
@@ -273,7 +273,7 @@ class AutoMapeadorTest {
         Map<String, Set<String>> dist = Map.of("TIPO_MURO", linkedSet("X", "Y", "Z"));
 
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, campos,
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, campos,
                 alternativasMapToFn(alts), distinctMapToFn(dist));
 
         ColunaDinamica cd = new AutoMapeador().mapear(entrada).colunasDinamicas().get("TIPO_MURO");
@@ -289,7 +289,7 @@ class AutoMapeadorTest {
         Classificacao cls = classificacao("M", Map.of(), List.of(" tipo_muro "));
         List<Campo> campos = List.of(campo(3, "TIPO_MURO", Tipo.TEXTO));
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, campos,
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, campos,
                 idC -> List.of(), h -> Set.of());
 
         ColunaDinamica cd = new AutoMapeador().mapear(entrada).colunasDinamicas().get(" tipo_muro ");
@@ -304,7 +304,7 @@ class AutoMapeadorTest {
         Classificacao cls = classificacao("M", Map.of(), List.of("tipo_muro"));
         List<Campo> campos = List.of(campo(3, "TIPO_MURO", Tipo.TEXTO));
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, campos,
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, campos,
                 idC -> List.of(), h -> Set.of());
 
         ColunaDinamica cd = new AutoMapeador(true, true).mapear(entrada).colunasDinamicas().get("tipo_muro");
@@ -318,7 +318,7 @@ class AutoMapeadorTest {
         Classificacao cls = classificacao("M", Map.of(), List.of("X"));
         List<Campo> campos = List.of(campoInativo(99, "X", Tipo.TEXTO));
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, campos,
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, campos,
                 idC -> List.of(), h -> Set.of());
 
         ImportacaoException ex = assertThrows(ImportacaoException.class,
@@ -337,7 +337,7 @@ class AutoMapeadorTest {
                 List.of());
 
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, List.of(),
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, List.of(),
                 idC -> List.of(), h -> Set.of());
 
         Mapeamento m = new AutoMapeador().mapear(entrada);
@@ -353,7 +353,7 @@ class AutoMapeadorTest {
         Classificacao cls = classificacao("M", Map.of(),
                 List.of("ZULU", "ALPHA", "MIKE"));
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, List.of(),
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, List.of(),
                 idC -> List.of(), h -> Set.of());
 
         Mapeamento m = new AutoMapeador().mapear(entrada);
@@ -376,7 +376,7 @@ class AutoMapeadorTest {
         dist.add(null);
 
         EntradaAutoMapeamento entrada = new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, campos,
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, campos,
                 alternativasMapToFn(alts), h -> dist);
 
         ColunaDinamica cd = new AutoMapeador().mapear(entrada).colunasDinamicas().get("TIPO_MURO");
@@ -398,19 +398,19 @@ class AutoMapeadorTest {
     void entradaAutoMapeamento_validaTodosOsSlots() {
         Classificacao cls = classificacao("M", Map.of(), List.of());
         assertThrows(IllegalArgumentException.class, () -> new EntradaAutoMapeamento(
-                null, "p.xlsx", Fluxo.TERRITORIAL, List.of(), idC -> List.of(), h -> Set.of()));
+                null, "p.xlsx", Fluxo.TERRITORIAL, null, List.of(), idC -> List.of(), h -> Set.of()));
         assertThrows(IllegalArgumentException.class, () -> new EntradaAutoMapeamento(
-                cls, null, Fluxo.TERRITORIAL, List.of(), idC -> List.of(), h -> Set.of()));
+                cls, null, Fluxo.TERRITORIAL, null, List.of(), idC -> List.of(), h -> Set.of()));
         assertThrows(IllegalArgumentException.class, () -> new EntradaAutoMapeamento(
-                cls, "  ", Fluxo.TERRITORIAL, List.of(), idC -> List.of(), h -> Set.of()));
+                cls, "  ", Fluxo.TERRITORIAL, null, List.of(), idC -> List.of(), h -> Set.of()));
         assertThrows(IllegalArgumentException.class, () -> new EntradaAutoMapeamento(
-                cls, "p.xlsx", null, List.of(), idC -> List.of(), h -> Set.of()));
+                cls, "p.xlsx", null, null, List.of(), idC -> List.of(), h -> Set.of()));
         assertThrows(IllegalArgumentException.class, () -> new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, null, idC -> List.of(), h -> Set.of()));
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, null, idC -> List.of(), h -> Set.of()));
         assertThrows(IllegalArgumentException.class, () -> new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, List.of(), null, h -> Set.of()));
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, List.of(), null, h -> Set.of()));
         assertThrows(IllegalArgumentException.class, () -> new EntradaAutoMapeamento(
-                cls, "p.xlsx", Fluxo.TERRITORIAL, List.of(), idC -> List.of(), null));
+                cls, "p.xlsx", Fluxo.TERRITORIAL, null, List.of(), idC -> List.of(), null));
     }
 
     @Test
@@ -419,7 +419,7 @@ class AutoMapeadorTest {
         mutavel.add(campo(1, "X", Tipo.TEXTO));
         EntradaAutoMapeamento e = new EntradaAutoMapeamento(
                 classificacao("M", Map.of(), List.of()),
-                "p.xlsx", Fluxo.TERRITORIAL, mutavel, idC -> List.of(), h -> Set.of());
+                "p.xlsx", Fluxo.TERRITORIAL, null, mutavel, idC -> List.of(), h -> Set.of());
         assertNotNull(e.campos());
         assertThrows(UnsupportedOperationException.class,
                 () -> e.campos().add(campo(2, "Y", Tipo.TEXTO)));

@@ -23,7 +23,7 @@ class MapeamentoTest {
     @Test
     void construtor_camposObrigatoriosOk() {
         Mapeamento m = new Mapeamento(
-                Fluxo.TERRITORIAL, "X.xlsx", "MAT", Map.of(), Map.of());
+                Fluxo.TERRITORIAL, "X.xlsx", "MAT", null, Map.of(), Map.of());
         assertNotNull(m);
         assertEquals(Fluxo.TERRITORIAL, m.fluxo());
         assertEquals("X.xlsx", m.planilha());
@@ -33,7 +33,7 @@ class MapeamentoTest {
     @Test
     void construtor_fluxoNulo_lanca() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> new Mapeamento(null, "X.xlsx", "MAT", Map.of(), Map.of()));
+                () -> new Mapeamento(null, "X.xlsx", "MAT", null, Map.of(), Map.of()));
         assertTrue(ex.getMessage().toLowerCase().contains("fluxo"),
                 "mensagem deve identificar o campo: " + ex.getMessage());
     }
@@ -41,7 +41,7 @@ class MapeamentoTest {
     @Test
     void construtor_planilhaNula_lanca() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> new Mapeamento(Fluxo.TERRITORIAL, null, "MAT", Map.of(), Map.of()));
+                () -> new Mapeamento(Fluxo.TERRITORIAL, null, "MAT", null, Map.of(), Map.of()));
         assertTrue(ex.getMessage().toLowerCase().contains("planilha"),
                 "mensagem deve identificar o campo: " + ex.getMessage());
     }
@@ -49,7 +49,7 @@ class MapeamentoTest {
     @Test
     void construtor_colunaCodigoImovelNula_lanca() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> new Mapeamento(Fluxo.TERRITORIAL, "X.xlsx", null, Map.of(), Map.of()));
+                () -> new Mapeamento(Fluxo.TERRITORIAL, "X.xlsx", null, null, Map.of(), Map.of()));
         assertTrue(ex.getMessage().toLowerCase().contains("colunacodigoimovel"),
                 "mensagem deve identificar o campo: " + ex.getMessage());
     }
@@ -57,7 +57,7 @@ class MapeamentoTest {
     @Test
     void construtor_aplicaTrim() {
         Mapeamento m = new Mapeamento(
-                Fluxo.PREDIAL, "  Y.xlsx  ", "  IDKEY  ", Map.of(), Map.of());
+                Fluxo.PREDIAL, "  Y.xlsx  ", "  IDKEY  ", null, Map.of(), Map.of());
         assertEquals("Y.xlsx", m.planilha());
         assertEquals("IDKEY", m.colunaCodigoImovel());
     }
@@ -65,7 +65,7 @@ class MapeamentoTest {
     @Test
     void construtor_mapasNulosViramVazios() {
         Mapeamento m = new Mapeamento(
-                Fluxo.TERRITORIAL, "X.xlsx", "MAT", null, null);
+                Fluxo.TERRITORIAL, "X.xlsx", "MAT", null, null, null);
         assertNotNull(m.colunasFixas());
         assertNotNull(m.colunasDinamicas());
         assertTrue(m.colunasFixas().isEmpty());
@@ -75,10 +75,10 @@ class MapeamentoTest {
     @Test
     void igualdadeEstrutural_records() {
         Mapeamento a = new Mapeamento(
-                Fluxo.TERRITORIAL, "X.xlsx", "MAT",
+                Fluxo.TERRITORIAL, "X.xlsx", "MAT", null,
                 Map.of("AREA", "area_terreno"), Map.of());
         Mapeamento b = new Mapeamento(
-                Fluxo.TERRITORIAL, "X.xlsx", "MAT",
+                Fluxo.TERRITORIAL, "X.xlsx", "MAT", null,
                 Map.of("AREA", "area_terreno"), Map.of());
         assertEquals(a, b);
         assertEquals(a.hashCode(), b.hashCode());
@@ -88,7 +88,7 @@ class MapeamentoTest {
     void mapasNaoNulos_saoPreservadosPorReferencia() {
         Map<String, String> fixas = Map.of("A", "a");
         Mapeamento m = new Mapeamento(
-                Fluxo.TERRITORIAL, "X.xlsx", "MAT", fixas, Map.of());
+                Fluxo.TERRITORIAL, "X.xlsx", "MAT", null, fixas, Map.of());
         assertSame(fixas, m.colunasFixas());
     }
 }

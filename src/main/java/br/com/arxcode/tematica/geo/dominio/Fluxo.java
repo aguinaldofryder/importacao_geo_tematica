@@ -17,48 +17,59 @@ package br.com.arxcode.tematica.geo.dominio;
  * um quebraria comunicação com usuários ou com DBA. Por isso a assimetria é mantida
  * e formalizada em código.
  *
- * <h2>Tabelas físicas e coluna chave — parte do contrato</h2>
- * <p>Os nomes retornados por {@link #tabelaPrincipal()}, {@link #tabelaRespostas()}
- * e {@link #colunaChave()} são parte do contrato com o banco IPTU e
- * <strong>não</strong> devem ser configuráveis. Alterá-los exige mudança de código
- * com revisão de DBA. A {@code colunaChave()} é a coluna física da tabela principal
- * usada no {@code WHERE} dos {@code UPDATE} (Story 4.2) e como referência no JOIN
- * com a tabela de respostas (Story 4.3).
+ * <h2>Tabelas físicas — parte do contrato</h2>
+ * <p>Os nomes retornados por {@link #tabelaPrincipal()} e {@link #tabelaRespostas()}
+ * são parte do contrato com o banco IPTU e <strong>não</strong> devem ser configuráveis.
+ * Alterá-los exige mudança de código com revisão de DBA.
+ *
+ * <h2>WHERE do UPDATE — chave composta</h2>
+ * <p>A tabela principal de ambos os fluxos é identificada por chave composta:
+ * <ul>
+ *   <li>TERRITORIAL: {@code tipocadastro = 1 AND cadastrogeral = ?}</li>
+ *   <li>PREDIAL:     {@code tipocadastro = 1 AND cadastrogeral = ? AND sequencia = ?}</li>
+ * </ul>
+ * O {@code SqlGeradorUpdate} constrói esse WHERE diretamente; não há coluna-chave única.
+ *
+ * <h2>Coluna de referência FK (tabelas de respostas)</h2>
+ * <p>{@link #colunaReferencia()} retorna a coluna da tabela principal cujo valor é
+ * gravado na coluna {@code referencia} das tabelas de respostas
+ * ({@code respostaterreno} / {@code respostasegmento}).
  *
  * <p>Consumidores: Story 2.3 (repositórios JDBC), Story 2.4 (classificador de colunas),
  * Story 3.2 (auto-mapeador), Stories 4.2 / 4.3 / 4.5 (geração e orquestração de SQL).
  *
  * <p>Story: 2.2 — Domínio: enums e records.
- * Story 4.2 — adicionado {@link #colunaChave()}.
+ * Story 4.2 — adicionado {@code colunaReferencia()} (ex-{@code colunaChave}).
  */
 public enum Fluxo {
 
     /**
      * Fluxo Territorial — planilha {@code TABELA_TERRITORIAL_V001.xlsx}.
      * Tabela principal: {@code tribcadastroimobiliario}; respostas: {@code respostaterreno};
-     * funcionalidade no catálogo: {@code "TERRENO"}; coluna chave do JOIN:
-     * {@code tribcadastrogeral_idkey}.
+     * funcionalidade no catálogo: {@code "TERRENO"};
+     * coluna de referência FK: {@code tribcadastrogeral_idkey}.
      */
     TERRITORIAL("TERRENO", "tribcadastroimobiliario", "respostaterreno", "tribcadastrogeral_idkey", "s_respostaterreno_id"),
 
     /**
      * Fluxo Predial — planilha {@code TABELA_PREDIAL_V001.xlsx}.
      * Tabela principal: {@code tribimobiliariosegmento}; respostas: {@code respostasegmento};
-     * funcionalidade no catálogo: {@code "SEGMENTO"}; coluna chave do JOIN: {@code idkey}.
+     * funcionalidade no catálogo: {@code "SEGMENTO"};
+     * coluna de referência FK: {@code idkey}.
      */
     PREDIAL("SEGMENTO", "tribimobiliariosegmento", "respostasegmento", "idkey", "s_respostasegmento_id");
 
     private final String funcionalidade;
     private final String tabelaPrincipal;
     private final String tabelaRespostas;
-    private final String colunaChave;
+    private final String colunaReferencia;
     private final String sequenceRespostas;
 
-    Fluxo(String funcionalidade, String tabelaPrincipal, String tabelaRespostas, String colunaChave, String sequenceRespostas) {
+    Fluxo(String funcionalidade, String tabelaPrincipal, String tabelaRespostas, String colunaReferencia, String sequenceRespostas) {
         this.funcionalidade = funcionalidade;
         this.tabelaPrincipal = tabelaPrincipal;
         this.tabelaRespostas = tabelaRespostas;
-        this.colunaChave = colunaChave;
+        this.colunaReferencia = colunaReferencia;
         this.sequenceRespostas = sequenceRespostas;
     }
 
@@ -90,17 +101,19 @@ public enum Fluxo {
     }
 
     /**
-     * Coluna física da tabela principal usada como chave no {@code WHERE} dos
-     * {@code UPDATE} (Story 4.2 — {@code SqlGeradorUpdate}) e como referência no
-     * JOIN com a tabela de respostas (Story 4.3 — {@code SqlGeradorUpsert}):
+     * Coluna física da tabela principal cujo valor é armazenado na coluna
+     * {@code referencia} das tabelas de respostas, servindo como chave estrangeira:
      * {@code tribcadastrogeral_idkey} (territorial) ou {@code idkey} (predial).
      *
-     * <p>Origem dos literais: {@code docs/architecture/arquitetura.md} §1
-     * (joins {@code tribcadastroimobiliario.tribcadastrogeral_idkey = respostaterreno.referencia}
-     * e {@code tribimobiliariosegmento.idkey = respostasegmento.referencia}).
+     * <p><strong>Não</strong> é usada no {@code WHERE} do {@code UPDATE} da tabela
+     * principal — esse WHERE usa a chave composta real
+     * ({@code tipocadastro}, {@code cadastrogeral}, e {@code sequencia} para PREDIAL).
+     * O único consumidor desta coluna é o {@code SqlGeradorUpsert} (Story 4.3), que
+     * a referencia ao gravar {@code respostaterreno.referencia} /
+     * {@code respostasegmento.referencia}.
      */
-    public String colunaChave() {
-        return colunaChave;
+    public String colunaReferencia() {
+        return colunaReferencia;
     }
 
     /**

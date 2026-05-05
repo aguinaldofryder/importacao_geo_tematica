@@ -92,7 +92,7 @@ class ValidarCommandTest {
         fixas.put("CADASTRO", "tribcadastroimobiliario.cadastro");
 
         return new Mapeamento(Fluxo.TERRITORIAL, "TABELA_TERRITORIAL_V001.xlsx",
-                "tribcadastrogeral_idkey", fixas, dinamicas);
+                "INSCRICAO_IMOBILIARIA", null, fixas, dinamicas);
     }
 
     // ------------------------------------------------------------------
@@ -190,7 +190,7 @@ class ValidarCommandTest {
                 new ColunaDinamica(StatusMapeamento.PENDENTE, null, null, null,
                         "Sem correspondência no catálogo", null));
         Mapeamento m = new Mapeamento(Fluxo.TERRITORIAL, "x.xlsx", "id",
-                Map.of(), dinamicas);
+                null, Map.of(), dinamicas);
 
         Path arq = tmp.resolve("mapping.json");
         mapeamentoStore.salvar(m, arq);
@@ -227,7 +227,7 @@ class ValidarCommandTest {
         dinamicas.put("MULT_Y",
                 new ColunaDinamica(StatusMapeamento.MAPEADO, 99, Tipo.MULTIPLA_ESCOLHA, alternativas, null, null));
 
-        Mapeamento m = new Mapeamento(Fluxo.TERRITORIAL, "x.xlsx", "id", fixas, dinamicas);
+        Mapeamento m = new Mapeamento(Fluxo.TERRITORIAL, "x.xlsx", "id", null, fixas, dinamicas);
         Path arq = tmp.resolve("mapping.json");
         mapeamentoStore.salvar(m, arq);
 
@@ -254,7 +254,7 @@ class ValidarCommandTest {
         dinamicas.put("HEADER_REPETIDO",
                 new ColunaDinamica(StatusMapeamento.MAPEADO, 50, Tipo.MULTIPLA_ESCOLHA, alternativas, null, null));
 
-        Mapeamento m = new Mapeamento(Fluxo.TERRITORIAL, "x.xlsx", "id", Map.of(), dinamicas);
+        Mapeamento m = new Mapeamento(Fluxo.TERRITORIAL, "x.xlsx", "id", null, Map.of(), dinamicas);
         Path arq = tmp.resolve("mapping.json");
         mapeamentoStore.salvar(m, arq);
 

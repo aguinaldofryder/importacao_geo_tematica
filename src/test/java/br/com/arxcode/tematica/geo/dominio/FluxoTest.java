@@ -35,16 +35,16 @@ class FluxoTest {
         assertNotEquals(Fluxo.TERRITORIAL.funcionalidade(), Fluxo.PREDIAL.funcionalidade());
     }
 
-    // ---------- Story 4.2: colunaChave() ----------
+    // ---------- Story 4.2: colunaReferencia() (FK para tabelas de respostas) ----------
 
     @Test
-    void territorial_colunaChave_eh_tribcadastrogeral_idkey() {
-        assertEquals("tribcadastrogeral_idkey", Fluxo.TERRITORIAL.colunaChave());
+    void territorial_colunaReferencia_eh_tribcadastrogeral_idkey() {
+        assertEquals("tribcadastrogeral_idkey", Fluxo.TERRITORIAL.colunaReferencia());
     }
 
     @Test
-    void predial_colunaChave_eh_idkey() {
-        assertEquals("idkey", Fluxo.PREDIAL.colunaChave());
+    void predial_colunaReferencia_eh_idkey() {
+        assertEquals("idkey", Fluxo.PREDIAL.colunaReferencia());
     }
 
     // ---------- Story 4.3: sequenceRespostas() (AC16) ----------
