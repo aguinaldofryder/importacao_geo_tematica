@@ -66,14 +66,14 @@ class SqlGeradorUpsertTest {
 
         @Test
         void mapeamentoNulo_lancaIae() {
-            LinhaMapeada l = new LinhaMapeada("123", null, Map.of(), Map.of());
+            LinhaMapeada l = new LinhaMapeada(123L, null, Map.of(), Map.of());
             assertThrows(IllegalArgumentException.class,
                     () -> gerador.gerar(l, null, Fluxo.TERRITORIAL, coercionador, 1L));
         }
 
         @Test
         void fluxoNulo_lancaIae() {
-            LinhaMapeada l = new LinhaMapeada("123", null, Map.of(), Map.of());
+            LinhaMapeada l = new LinhaMapeada(123L, null, Map.of(), Map.of());
             Mapeamento m = mapeamentoComDinamicas(Fluxo.TERRITORIAL, Map.of());
             assertThrows(IllegalArgumentException.class,
                     () -> gerador.gerar(l, m, null, coercionador, 1L));
@@ -81,7 +81,7 @@ class SqlGeradorUpsertTest {
 
         @Test
         void coercionadorNulo_lancaIae() {
-            LinhaMapeada l = new LinhaMapeada("123", null, Map.of(), Map.of());
+            LinhaMapeada l = new LinhaMapeada(123L, null, Map.of(), Map.of());
             Mapeamento m = mapeamentoComDinamicas(Fluxo.TERRITORIAL, Map.of());
             assertThrows(IllegalArgumentException.class,
                     () -> gerador.gerar(l, m, Fluxo.TERRITORIAL, null, 1L));
@@ -96,7 +96,7 @@ class SqlGeradorUpsertTest {
         @ParameterizedTest
         @EnumSource(Fluxo.class)
         void mapeamentoSemDinamicas_retornaSucessoListaVazia(Fluxo fluxo) {
-            LinhaMapeada linha = new LinhaMapeada("ABC", null, Map.of(), Map.of());
+            LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), Map.of());
             Mapeamento m = mapeamentoComDinamicas(fluxo, Map.of());
 
             ResultadoUpsert r = gerador.gerar(linha, m, fluxo, coercionador, 1L);
@@ -115,7 +115,7 @@ class SqlGeradorUpsertTest {
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("CAMPO_A", "");
             celulas.put("CAMPO_B", "   ");
-            LinhaMapeada linha = new LinhaMapeada("X1", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
 
@@ -131,7 +131,7 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("CAMPO_A", "valor qualquer");
-            LinhaMapeada linha = new LinhaMapeada("X1", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
 
@@ -155,7 +155,7 @@ class SqlGeradorUpsertTest {
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("CAMPO_PENDENTE", "valor pendente");
             celulas.put("CAMPO_OK", "valor ok");
-            LinhaMapeada linha = new LinhaMapeada("REF1", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 12345L);
 
@@ -179,7 +179,7 @@ class SqlGeradorUpsertTest {
             celulas.put("CAMPO_VAZIO", "");
             celulas.put("CAMPO_BLANK", "   ");
             celulas.put("CAMPO_OK", "valor");
-            LinhaMapeada linha = new LinhaMapeada("REF", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 99L);
 
@@ -195,7 +195,7 @@ class SqlGeradorUpsertTest {
             Mapeamento m = mapeamentoComDinamicas(Fluxo.TERRITORIAL, dinamicas);
 
             // Linha sem celula para CAMPO_AUSENTE
-            LinhaMapeada linha = new LinhaMapeada("REF", null, Map.of(), Map.of());
+            LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), Map.of());
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 99L);
 
@@ -217,7 +217,7 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("OBSERVACAO", "casa simples");
-            LinhaMapeada linha = new LinhaMapeada("12345", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(12345L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
 
@@ -240,7 +240,7 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("AREA", "1234.56");
-            LinhaMapeada linha = new LinhaMapeada("12345", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(12345L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
 
@@ -262,7 +262,7 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("DT_AVAL", "2024-01-15");
-            LinhaMapeada linha = new LinhaMapeada("12345", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(12345L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
 
@@ -282,7 +282,7 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("DT_AVAL", "15/01/2024");
-            LinhaMapeada linha = new LinhaMapeada("12345", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(12345L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
 
@@ -302,7 +302,7 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("TIPO_IMOVEL", "CASA");
-            LinhaMapeada linha = new LinhaMapeada("12345", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(12345L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
 
@@ -324,7 +324,7 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("OBSERVACAO", "obs");
-            LinhaMapeada linha = new LinhaMapeada("12345", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(12345L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.PREDIAL, coercionador, 55500L);
 
@@ -352,7 +352,7 @@ class SqlGeradorUpsertTest {
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("AREA", "abc");
             celulas.put("DATA_AVAL", "xyz");
-            LinhaMapeada linha = new LinhaMapeada("R1", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
 
@@ -372,7 +372,7 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("TIPO", "INEXISTENTE");
-            LinhaMapeada linha = new LinhaMapeada("R1", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
 
@@ -391,7 +391,7 @@ class SqlGeradorUpsertTest {
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("OK_TEXTO", "valido");
             celulas.put("RUIM_DECIMAL", "abc");
-            LinhaMapeada linha = new LinhaMapeada("R1", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
 
@@ -415,7 +415,7 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("OBS", "v");
-            LinhaMapeada linha = new LinhaMapeada("0", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 0L);
 
@@ -441,7 +441,7 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("OBS", "v");
-            LinhaMapeada linha = new LinhaMapeada("REF", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
             ResultadoUpsert r = gerador.gerar(linha, m, fluxo, coercionador, 12345L);
 

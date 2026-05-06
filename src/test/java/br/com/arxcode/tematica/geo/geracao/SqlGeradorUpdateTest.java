@@ -25,14 +25,16 @@ import br.com.arxcode.tematica.geo.mapeamento.Mapeamento;
  * Testes do {@link SqlGeradorUpdate} — função pura, JUnit Jupiter puro
  * (sem AssertJ — alinhado a {@code CONVENCOES.md} e ao padrão da Story 4.1).
  *
+ * <p>Story 4.8: {@code codigoImovel} agora é {@code long} e
+ * {@code sequenciaPredial} é {@code Long}; a coerção DECIMAL da chave foi
+ * removida do gerador — {@code String.valueOf} produz o literal numérico
+ * diretamente no {@code WHERE}.
+ *
  * <p>WHERE do UPDATE usa a chave composta real da tabela principal:
  * <ul>
  *   <li>TERRITORIAL: {@code tipocadastro = 1 AND cadastrogeral = <numeric>}</li>
  *   <li>PREDIAL:     {@code tipocadastro = 1 AND cadastrogeral = <numeric> AND sequencia = <numeric>}</li>
  * </ul>
- * Os valores de {@code cadastrogeral} e {@code sequencia} são coagidos via
- * {@code Tipo.DECIMAL} (sem aspas, sem escape de string — SQL injection impossível
- * por natureza do tipo numérico).
  */
 class SqlGeradorUpdateTest {
 
@@ -91,14 +93,14 @@ class SqlGeradorUpdateTest {
 
         @Test
         void mapeamentoNulo_lancaIae() {
-            LinhaMapeada l = new LinhaMapeada("123", null, Map.of(), Map.of());
+            LinhaMapeada l = new LinhaMapeada(123L, null, Map.of(), Map.of());
             assertThrows(IllegalArgumentException.class,
                     () -> gerador.gerar(l, null, Fluxo.TERRITORIAL, coercionador));
         }
 
         @Test
         void fluxoNulo_lancaIae() {
-            LinhaMapeada l = new LinhaMapeada("123", null, Map.of(), Map.of());
+            LinhaMapeada l = new LinhaMapeada(123L, null, Map.of(), Map.of());
             Mapeamento m = mapeamentoTerritorialPadrao();
             assertThrows(IllegalArgumentException.class,
                     () -> gerador.gerar(l, m, null, coercionador));
@@ -106,7 +108,7 @@ class SqlGeradorUpdateTest {
 
         @Test
         void coercionadorNulo_lancaIae() {
-            LinhaMapeada l = new LinhaMapeada("123", null, Map.of(), Map.of());
+            LinhaMapeada l = new LinhaMapeada(123L, null, Map.of(), Map.of());
             Mapeamento m = mapeamentoTerritorialPadrao();
             assertThrows(IllegalArgumentException.class,
                     () -> gerador.gerar(l, m, Fluxo.TERRITORIAL, null));
@@ -123,7 +125,7 @@ class SqlGeradorUpdateTest {
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("AREA_TERRENO", "350");
             celulas.put("TESTADA", "12");
-            LinhaMapeada linha = new LinhaMapeada("123", null, celulas, Map.of());
+            LinhaMapeada linha = new LinhaMapeada(123L, null, celulas, Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
 
@@ -139,7 +141,7 @@ class SqlGeradorUpdateTest {
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("AREA_CONSTRUIDA", "120,5");
             celulas.put("PADRAO", "Médio");
-            LinhaMapeada linha = new LinhaMapeada("999", "1", celulas, Map.of());
+            LinhaMapeada linha = new LinhaMapeada(999L, 1L, celulas, Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, mapeamentoPredialPadrao(), Fluxo.PREDIAL, coercionador);
 
@@ -169,7 +171,7 @@ class SqlGeradorUpdateTest {
         celulas.put("A_HEADER", "a");
         celulas.put("M_HEADER", "m");
         celulas.put("B_HEADER", "b");
-        LinhaMapeada linha = new LinhaMapeada("777", null, celulas, Map.of());
+        LinhaMapeada linha = new LinhaMapeada(777L, null, celulas, Map.of());
 
         ResultadoUpdate r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
 
@@ -190,7 +192,7 @@ class SqlGeradorUpdateTest {
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("AREA_TERRENO", "100");
             // TESTADA propositadamente ausente
-            LinhaMapeada linha = new LinhaMapeada("1001", null, celulas, Map.of());
+            LinhaMapeada linha = new LinhaMapeada(1001L, null, celulas, Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
 
@@ -205,7 +207,7 @@ class SqlGeradorUpdateTest {
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("AREA_TERRENO", "");
             celulas.put("TESTADA", "  ");
-            LinhaMapeada linha = new LinhaMapeada("1002", null, celulas, Map.of());
+            LinhaMapeada linha = new LinhaMapeada(1002L, null, celulas, Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
 
@@ -218,7 +220,7 @@ class SqlGeradorUpdateTest {
         @Test
         void todasCelulasNull_aindaEmiteUpdateValido() {
             // "coluna = NULL" é UPDATE válido (zerar campos é operação legítima).
-            LinhaMapeada linha = new LinhaMapeada("1003", null, Map.of(), Map.of());
+            LinhaMapeada linha = new LinhaMapeada(1003L, null, Map.of(), Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
 
@@ -237,42 +239,15 @@ class SqlGeradorUpdateTest {
         @ParameterizedTest
         @EnumSource(Fluxo.class)
         void mapeamentoSemColunasFixas_retornaFalha(Fluxo fluxo) {
-            LinhaMapeada linha = new LinhaMapeada("123", null, Map.of(), Map.of());
+            LinhaMapeada linha = fluxo == Fluxo.PREDIAL
+                    ? new LinhaMapeada(123L, 1L, Map.of(), Map.of())
+                    : new LinhaMapeada(123L, null, Map.of(), Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, mapeamentoVazio(fluxo), fluxo, coercionador);
 
             assertFalse(r.ok());
             assertNull(r.sql());
             assertEquals(List.of("Linha sem colunas fixas a atualizar"), r.erros());
-        }
-
-        @Test
-        void codigoNaoNumerico_retornaFalha() {
-            // cadastrogeral é NUMERIC — valor não-numérico na planilha é erro de dado.
-            Map<String, String> celulas = new LinkedHashMap<>();
-            celulas.put("AREA_TERRENO", "100");
-            celulas.put("TESTADA", "10");
-            LinhaMapeada linha = new LinhaMapeada("NAO_NUMERICO", null, celulas, Map.of());
-
-            ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
-
-            assertFalse(r.ok(), "Código não-numérico deve resultar em falha");
-            assertTrue(r.erros().stream().anyMatch(e -> e.contains("cadastrogeral")),
-                    () -> "Mensagem de erro deve mencionar 'cadastrogeral'; erros=" + r.erros());
-        }
-
-        @Test
-        void predial_sequenciaNaoNumerica_retornaFalha() {
-            Map<String, String> celulas = new LinkedHashMap<>();
-            celulas.put("AREA_CONSTRUIDA", "100");
-            celulas.put("PADRAO", "Alto");
-            LinhaMapeada linha = new LinhaMapeada("900001", "NAO_NUMERICO", celulas, Map.of());
-
-            ResultadoUpdate r = gerador.gerar(linha, mapeamentoPredialPadrao(), Fluxo.PREDIAL, coercionador);
-
-            assertFalse(r.ok(), "Sequência não-numérica deve resultar em falha");
-            assertTrue(r.erros().stream().anyMatch(e -> e.contains("sequencia")),
-                    () -> "Mensagem de erro deve mencionar 'sequencia'; erros=" + r.erros());
         }
     }
 
@@ -295,17 +270,6 @@ class SqlGeradorUpdateTest {
                     () -> "Mensagem deve seguir padrão \"Coluna '<header>': <erro>\"; obtido: " + r.erros().get(0));
             assertTrue(r.erros().get(0).contains("': "));
         }
-
-        @Test
-        void formatoCodigoImovel_segue_padraoDocumentado() {
-            String mensagemEsperada = "Código do imóvel (cadastrogeral): valor 'X' não é decimal válido";
-
-            ResultadoUpdate r = ResultadoUpdate.falha(List.of(mensagemEsperada));
-
-            assertFalse(r.ok());
-            assertTrue(r.erros().get(0).startsWith("Código do imóvel (cadastrogeral):"),
-                    () -> "Mensagem deve começar com 'Código do imóvel (cadastrogeral):'; obtido: " + r.erros().get(0));
-        }
     }
 
     // ---------- AC10: invariante CON-03 — nunca INSERT ----------
@@ -322,9 +286,8 @@ class SqlGeradorUpdateTest {
             String header1 = m.colunasFixas().keySet().iterator().next();
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put(header1, "valor");
-            // Para PREDIAL, sequenciaPredial deve ser numérico
-            String seq = fluxo == Fluxo.PREDIAL ? "1" : null;
-            LinhaMapeada linha = new LinhaMapeada("900001", seq, celulas, Map.of());
+            Long seq = fluxo == Fluxo.PREDIAL ? 1L : null;
+            LinhaMapeada linha = new LinhaMapeada(900001L, seq, celulas, Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, m, fluxo, coercionador);
 
@@ -338,8 +301,8 @@ class SqlGeradorUpdateTest {
             Mapeamento m = fluxo == Fluxo.TERRITORIAL
                     ? mapeamentoTerritorialPadrao()
                     : mapeamentoPredialPadrao();
-            String seq = fluxo == Fluxo.PREDIAL ? "1" : null;
-            LinhaMapeada linha = new LinhaMapeada("900001", seq, Map.of(), Map.of());
+            Long seq = fluxo == Fluxo.PREDIAL ? 1L : null;
+            LinhaMapeada linha = new LinhaMapeada(900001L, seq, Map.of(), Map.of());
 
             ResultadoUpdate r = gerador.gerar(linha, m, fluxo, coercionador);
 
@@ -360,7 +323,7 @@ class SqlGeradorUpdateTest {
         Map<String, String> celulas = new LinkedHashMap<>();
         celulas.put("AREA_TERRENO", "v");
         celulas.put("TESTADA", "10");
-        LinhaMapeada linha = new LinhaMapeada("900001", null, celulas, Map.of());
+        LinhaMapeada linha = new LinhaMapeada(900001L, null, celulas, Map.of());
 
         ResultadoUpdate r = gerador.gerar(linha, mapeamentoTerritorialPadrao(), Fluxo.TERRITORIAL, coercionador);
 
@@ -376,7 +339,7 @@ class SqlGeradorUpdateTest {
         Map<String, String> celulas = new LinkedHashMap<>();
         celulas.put("AREA_CONSTRUIDA", "v");
         celulas.put("PADRAO", "Alto");
-        LinhaMapeada linha = new LinhaMapeada("900001", "2", celulas, Map.of());
+        LinhaMapeada linha = new LinhaMapeada(900001L, 2L, celulas, Map.of());
 
         ResultadoUpdate r = gerador.gerar(linha, mapeamentoPredialPadrao(), Fluxo.PREDIAL, coercionador);
 

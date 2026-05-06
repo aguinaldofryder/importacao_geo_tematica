@@ -337,9 +337,9 @@ public class ImportarCommand implements Callable<Integer> {
 
         resumo.incrementarLido();
 
-        // Extrair código do imóvel (AC6) ──────────────────────────────────────
-        String codigoImovel = row.getOrDefault(mapeamento.colunaCodigoImovel(), "").trim();
-        if (codigoImovel.isEmpty()) {
+        // Extrair código do imóvel como String bruta (AC6) ──────────────────────
+        String codigoImovelStr = row.getOrDefault(mapeamento.colunaCodigoImovel(), "").trim();
+        if (codigoImovelStr.isEmpty()) {
             logErros.registrarLinhaPulada(numLinha, "(vazio)",
                     "Código do imóvel vazio ou ausente na coluna '" + mapeamento.colunaCodigoImovel() + "'");
             resumo.registrarErro();
@@ -347,21 +347,48 @@ public class ImportarCommand implements Callable<Integer> {
             return;
         }
 
-        // Extrair sequência predial (apenas para fluxo PREDIAL) ───────────────
-        String sequenciaPredial = null;
+        // Parse antecipado: codigoImovel deve ser numérico positivo (Story 4.8) ─
+        long codigoImovel;
+        try {
+            codigoImovel = Long.parseLong(codigoImovelStr);
+            if (codigoImovel <= 0) {
+                throw new NumberFormatException("não positivo");
+            }
+        } catch (NumberFormatException e) {
+            logErros.registrarLinhaPulada(numLinha, codigoImovelStr,
+                    "Código do imóvel inválido (deve ser inteiro positivo): '" + codigoImovelStr + "'");
+            resumo.registrarErro();
+            barra.atualizar(linhaExcel[0] - 1, resumo.erro());
+            return;
+        }
+
+        // Extrair e converter sequência predial (apenas para fluxo PREDIAL) ────
+        Long sequenciaPredial = null;
         if (fluxo == Fluxo.PREDIAL) {
             String colSeq = mapeamento.colunaSequenciaPredial();
             if (colSeq == null || colSeq.isBlank()) {
-                logErros.registrarLinhaPulada(numLinha, codigoImovel,
+                logErros.registrarLinhaPulada(numLinha, codigoImovelStr,
                         "Coluna de sequência predial não configurada no mapeamento (colunaSequenciaPredial ausente)");
                 resumo.registrarErro();
                 barra.atualizar(linhaExcel[0] - 1, resumo.erro());
                 return;
             }
-            sequenciaPredial = row.getOrDefault(colSeq, "").trim();
-            if (sequenciaPredial.isEmpty()) {
-                logErros.registrarLinhaPulada(numLinha, codigoImovel,
+            String seqStr = row.getOrDefault(colSeq, "").trim();
+            if (seqStr.isEmpty()) {
+                logErros.registrarLinhaPulada(numLinha, codigoImovelStr,
                         "Sequência predial vazia ou ausente na coluna '" + colSeq + "'");
+                resumo.registrarErro();
+                barra.atualizar(linhaExcel[0] - 1, resumo.erro());
+                return;
+            }
+            try {
+                sequenciaPredial = Long.parseLong(seqStr);
+                if (sequenciaPredial <= 0) {
+                    throw new NumberFormatException("não positivo");
+                }
+            } catch (NumberFormatException e) {
+                logErros.registrarLinhaPulada(numLinha, codigoImovelStr,
+                        "Sequência predial inválida (deve ser inteiro positivo): '" + seqStr + "'");
                 resumo.registrarErro();
                 barra.atualizar(linhaExcel[0] - 1, resumo.erro());
                 return;
@@ -372,15 +399,16 @@ public class ImportarCommand implements Callable<Integer> {
         // Optional.empty() = imóvel não encontrado → pula linha inteira (inclusive UPDATE).
         Optional<Long> idkeyOpt;
         if (fluxo == Fluxo.TERRITORIAL) {
-            idkeyOpt = cadastroImobiliarioRepository.buscarIdKey(codigoImovel);
+            idkeyOpt = cadastroImobiliarioRepository.buscarIdKey(codigoImovelStr);
         } else {
-            idkeyOpt = imobiliarioSegmentoRepository.buscarIdKey(codigoImovel, sequenciaPredial);
+            idkeyOpt = imobiliarioSegmentoRepository.buscarIdKey(codigoImovelStr,
+                    String.valueOf(sequenciaPredial));
         }
         if (idkeyOpt.isEmpty()) {
             String detalhe = fluxo == Fluxo.PREDIAL
-                    ? "cadastrogeral=" + codigoImovel + ", sequencia=" + sequenciaPredial
-                    : "cadastrogeral=" + codigoImovel;
-            logErros.registrarLinhaPulada(numLinha, codigoImovel,
+                    ? "cadastrogeral=" + codigoImovelStr + ", sequencia=" + sequenciaPredial
+                    : "cadastrogeral=" + codigoImovelStr;
+            logErros.registrarLinhaPulada(numLinha, codigoImovelStr,
                     "Imóvel não encontrado: " + detalhe);
             resumo.registrarErro();
             barra.atualizar(linhaExcel[0] - 1, resumo.erro());
@@ -410,7 +438,7 @@ public class ImportarCommand implements Callable<Integer> {
             sqlBuffer.append(resultadoUpdate.sql()).append("\n");
             resumo.registrarUpdatePrincipal();
         } else {
-            logErros.registrarErrosLinha(numLinha, codigoImovel, resultadoUpdate.erros());
+            logErros.registrarErrosLinha(numLinha, codigoImovelStr, resultadoUpdate.erros());
             houveErroNaLinha = true;
         }
 
@@ -427,7 +455,7 @@ public class ImportarCommand implements Callable<Integer> {
             }
         } else {
             // erros de UPDATE e UPSERT registrados em chamadas separadas (AC8 Dev Notes)
-            logErros.registrarErrosLinha(numLinha, codigoImovel, resultadoUpsert.erros());
+            logErros.registrarErrosLinha(numLinha, codigoImovelStr, resultadoUpsert.erros());
             houveErroNaLinha = true;
         }
 

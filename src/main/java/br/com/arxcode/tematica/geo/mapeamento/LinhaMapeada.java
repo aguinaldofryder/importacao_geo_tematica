@@ -10,15 +10,16 @@ import java.util.Map;
  *
  * <p>Slots:
  * <ul>
- *   <li>{@code codigoImovel} — valor cru da célula identificada como chave do
- *       imóvel (a coluna apontada por {@link Mapeamento#colunaCodigoImovel()}).
- *       Corresponde ao campo {@code cadastrogeral} da PK das tabelas principais.
- *       Sempre presente; será coagido como {@code Tipo.TEXTO} pelo
- *       {@code SqlGeradorUpdate} para gerar o {@code WHERE}.</li>
- *   <li>{@code sequenciaPredial} — valor cru da célula de sequência do segmento
- *       predial (terceiro componente da PK de {@code tribimobiliariosegmento}).
- *       Presente apenas para o fluxo {@link br.com.arxcode.tematica.geo.dominio.Fluxo#PREDIAL};
- *       {@code null} para o fluxo TERRITORIAL. Nunca em branco se não-{@code null}.</li>
+ *   <li>{@code codigoImovel} — valor numérico do campo {@code cadastrogeral}
+ *       (PK das tabelas principais), já convertido de {@code String} para
+ *       {@code long} em {@code ImportarCommand} (Story 4.8).
+ *       Invariante: {@code codigoImovel > 0}.</li>
+ *   <li>{@code sequenciaPredial} — sequência do segmento predial (terceiro
+ *       componente da PK de {@code tribimobiliariosegmento}), boxed para
+ *       permitir {@code null}. Presente apenas para o fluxo
+ *       {@link br.com.arxcode.tematica.geo.dominio.Fluxo#PREDIAL};
+ *       {@code null} para o fluxo TERRITORIAL. Nunca zero ou negativo
+ *       se não-{@code null}.</li>
  *   <li>{@code celulasFixas} — valores das colunas fixas, indexados pelo
  *       <em>header</em> da planilha (a mesma chave usada em
  *       {@link Mapeamento#colunasFixas()}). Ordem de iteração preservada via
@@ -31,10 +32,10 @@ import java.util.Map;
  *
  * <p><strong>Construtor canônico — invariantes</strong>:
  * <ul>
- *   <li>{@code codigoImovel} {@code null} ou em branco → {@link IllegalArgumentException}
+ *   <li>{@code codigoImovel} {@code <= 0} → {@link IllegalArgumentException}
  *       com mensagem PT.</li>
- *   <li>{@code sequenciaPredial} não-{@code null} mas em branco → {@link IllegalArgumentException}
- *       (se informado, deve ter valor).</li>
+ *   <li>{@code sequenciaPredial} não-{@code null} e {@code <= 0} → {@link IllegalArgumentException}
+ *       (se informada, deve ser positiva).</li>
  *   <li>{@code celulasFixas} / {@code celulasDinamicas} {@code null} → tornam-se
  *       {@link Map#of()}.</li>
  *   <li>Cópias defensivas via {@link Collections#unmodifiableMap(Map)} sobre
@@ -43,23 +44,23 @@ import java.util.Map;
  *
  * <p>Consumidores: Story 4.2 ({@code SqlGeradorUpdate} — usa
  * {@code codigoImovel}, {@code sequenciaPredial} e {@code celulasFixas});
- * Story 4.3 ({@code SqlGeradorUpsert} — usa {@code codigoImovel} e
- * {@code celulasDinamicas}); Story 4.5 ({@code ImportarCommand}).
+ * Story 4.3 ({@code SqlGeradorUpsert} — usa {@code celulasDinamicas});
+ * Story 4.5 ({@code ImportarCommand}).
  *
- * <p>Story: 4.2 — SqlGeradorUpdate (introdução do VO).
+ * <p>Story: 4.8 — Conversão antecipada de codigoImovel para long.
  */
 public record LinhaMapeada(
-        String codigoImovel,
-        String sequenciaPredial,
+        long codigoImovel,
+        Long sequenciaPredial,
         Map<String, String> celulasFixas,
         Map<String, String> celulasDinamicas) {
 
     public LinhaMapeada {
-        if (codigoImovel == null || codigoImovel.isBlank()) {
-            throw new IllegalArgumentException("Código do imóvel não pode ser nulo ou em branco.");
+        if (codigoImovel <= 0) {
+            throw new IllegalArgumentException("Código do imóvel deve ser maior que zero.");
         }
-        if (sequenciaPredial != null && sequenciaPredial.isBlank()) {
-            throw new IllegalArgumentException("Sequência predial não pode ser em branco se informada.");
+        if (sequenciaPredial != null && sequenciaPredial <= 0) {
+            throw new IllegalArgumentException("Sequência predial deve ser maior que zero se informada.");
         }
         celulasFixas = celulasFixas == null
                 ? Map.of()
