@@ -46,41 +46,48 @@ CREATE TABLE IF NOT EXISTS aise.alternativa (
 -- ── Tabelas principais ───────────────────────────────────────────────────────
 -- tribcadastroimobiliario: apenas UPDATE (nunca INSERT em produção — CON-03)
 -- PK composta real: (tipocadastro, cadastrogeral)
+-- tribcadastrogeral_idkey: chave interna referenciada por respostaterreno.referencia
 -- Coluna física `testada` usada pelo fluxo TERRITORIAL (colunas-fixas.territorial=TESTADA)
 CREATE TABLE IF NOT EXISTS aise.tribcadastroimobiliario (
+    tribcadastrogeral_idkey BIGINT      NOT NULL,
     tipocadastro  SMALLINT    NOT NULL DEFAULT 1,
     cadastrogeral NUMERIC     NOT NULL,
     testada       VARCHAR(50),
-    PRIMARY KEY (tipocadastro, cadastrogeral)
+    PRIMARY KEY (tipocadastro, cadastrogeral),
+    UNIQUE (tribcadastrogeral_idkey)
 );
 
 -- tribimobiliariosegmento: apenas UPDATE (nunca INSERT em produção — CON-03)
 -- PK composta real: (tipocadastro, cadastrogeral, sequencia)
+-- idkey: chave interna referenciada por respostasegmento.referencia
 -- Coluna física `area_construida` usada pelo fluxo PREDIAL (colunas-fixas.predial=AREA_CONSTRUIDA)
 CREATE TABLE IF NOT EXISTS aise.tribimobiliariosegmento (
+    idkey           BIGINT      NOT NULL,
     tipocadastro    SMALLINT    NOT NULL DEFAULT 1,
     cadastrogeral   NUMERIC     NOT NULL,
     sequencia       NUMERIC     NOT NULL,
     area_construida VARCHAR(50),
-    PRIMARY KEY (tipocadastro, cadastrogeral, sequencia)
+    PRIMARY KEY (tipocadastro, cadastrogeral, sequencia),
+    UNIQUE (idkey)
 );
 
 -- ── Tabelas de respostas ─────────────────────────────────────────────────────
 -- Upsert por (referencia, idcampo) via padrão DELETE+INSERT do SqlGeradorUpsert
+-- referencia é NUMERIC para alinhar com o banco real (FK para tribcadastrogeral_idkey / idkey)
 CREATE TABLE IF NOT EXISTS aise.respostaterreno (
-    id           BIGINT  PRIMARY KEY,
-    referencia   TEXT    NOT NULL,
-    valor        TEXT,
-    idcampo      BIGINT  NOT NULL,
-    idalternativa BIGINT
+    id            NUMERIC(10,0) PRIMARY KEY,
+    referencia    NUMERIC(10,0) NOT NULL,
+    valor         VARCHAR(250),
+    idcampo       NUMERIC(10,0) NOT NULL,
+    idalternativa NUMERIC(10,0)
 );
 
 CREATE TABLE IF NOT EXISTS aise.respostasegmento (
-    id            BIGINT  PRIMARY KEY,
-    referencia    TEXT    NOT NULL,
-    valor         TEXT,
-    idcampo       BIGINT  NOT NULL,
-    idalternativa BIGINT
+    id            NUMERIC(10,0) PRIMARY KEY,
+    referencia    NUMERIC(10,0) NOT NULL,
+    valor         VARCHAR(250),
+    idcampo       NUMERIC(10,0) NOT NULL,
+    idalternativa NUMERIC(10,0)
 );
 
 -- =============================================================================
@@ -121,30 +128,32 @@ INSERT INTO aise.alternativa (id, descricao, idcampo) VALUES
 -- =============================================================================
 
 -- Fluxo Territorial: cadastrogeral 100001–100010
-INSERT INTO aise.tribcadastroimobiliario (tipocadastro, cadastrogeral, testada) VALUES
-    (1, 100001, NULL),
-    (1, 100002, NULL),
-    (1, 100003, NULL),
-    (1, 100004, NULL),
-    (1, 100005, NULL),
-    (1, 100006, NULL),
-    (1, 100007, NULL),
-    (1, 100008, NULL),
-    (1, 100009, NULL),
-    (1, 100010, NULL);
+-- tribcadastrogeral_idkey = 1..10 (valores arbitrários únicos — casados com respostaterreno.referencia)
+INSERT INTO aise.tribcadastroimobiliario (tribcadastrogeral_idkey, tipocadastro, cadastrogeral, testada) VALUES
+    (1,  1, 100001, NULL),
+    (2,  1, 100002, NULL),
+    (3,  1, 100003, NULL),
+    (4,  1, 100004, NULL),
+    (5,  1, 100005, NULL),
+    (6,  1, 100006, NULL),
+    (7,  1, 100007, NULL),
+    (8,  1, 100008, NULL),
+    (9,  1, 100009, NULL),
+    (10, 1, 100010, NULL);
 
 -- Fluxo Predial: cadastrogeral 200001–200010, sequencia 1
-INSERT INTO aise.tribimobiliariosegmento (tipocadastro, cadastrogeral, sequencia, area_construida) VALUES
-    (1, 200001, 1, NULL),
-    (1, 200002, 1, NULL),
-    (1, 200003, 1, NULL),
-    (1, 200004, 1, NULL),
-    (1, 200005, 1, NULL),
-    (1, 200006, 1, NULL),
-    (1, 200007, 1, NULL),
-    (1, 200008, 1, NULL),
-    (1, 200009, 1, NULL),
-    (1, 200010, 1, NULL);
+-- idkey = 11..20 (valores únicos distintos dos territoriais — casados com respostasegmento.referencia)
+INSERT INTO aise.tribimobiliariosegmento (idkey, tipocadastro, cadastrogeral, sequencia, area_construida) VALUES
+    (11, 1, 200001, 1, NULL),
+    (12, 1, 200002, 1, NULL),
+    (13, 1, 200003, 1, NULL),
+    (14, 1, 200004, 1, NULL),
+    (15, 1, 200005, 1, NULL),
+    (16, 1, 200006, 1, NULL),
+    (17, 1, 200007, 1, NULL),
+    (18, 1, 200008, 1, NULL),
+    (19, 1, 200009, 1, NULL),
+    (20, 1, 200010, 1, NULL);
 
 -- =============================================================================
 -- Respostas vazias — exercita INSERT (primeiro run) e UPDATE (re-run)
