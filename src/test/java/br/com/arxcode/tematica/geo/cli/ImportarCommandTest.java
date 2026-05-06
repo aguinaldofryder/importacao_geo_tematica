@@ -89,10 +89,11 @@ class ImportarCommandTest {
      */
     static final String DDL =
             "CREATE TABLE IF NOT EXISTS aise.tribcadastroimobiliario ("
+            + "tribcadastrogeral_idkey BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "
             + "tipocadastro SMALLINT NOT NULL DEFAULT 1, "
             + "cadastrogeral NUMERIC NOT NULL, "
             + "area_terreno VARCHAR(100), "
-            + "PRIMARY KEY (tipocadastro, cadastrogeral)"
+            + "UNIQUE (tipocadastro, cadastrogeral)"
             + ");";
 
     /** Código presente 1 (numérico, improvávelmente existente no banco real). */

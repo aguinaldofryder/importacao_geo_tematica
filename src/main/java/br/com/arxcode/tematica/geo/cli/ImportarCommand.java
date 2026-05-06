@@ -1,6 +1,7 @@
 package br.com.arxcode.tematica.geo.cli;
 
-import br.com.arxcode.tematica.geo.catalogo.ExistenciaRepository;
+import br.com.arxcode.tematica.geo.catalogo.CadastroImobiliarioRepository;
+import br.com.arxcode.tematica.geo.catalogo.ImobiliarioSegmentoRepository;
 import br.com.arxcode.tematica.geo.config.ImportacaoConfig;
 import br.com.arxcode.tematica.geo.dominio.Fluxo;
 import br.com.arxcode.tematica.geo.dominio.excecao.MapeamentoIoException;
@@ -42,6 +43,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 
 import static java.nio.file.StandardOpenOption.CREATE;
@@ -144,7 +146,10 @@ public class ImportarCommand implements Callable<Integer> {
     ImportacaoConfig importacaoConfig;
 
     @Inject
-    ExistenciaRepository existenciaRepository;
+    CadastroImobiliarioRepository cadastroImobiliarioRepository;
+
+    @Inject
+    ImobiliarioSegmentoRepository imobiliarioSegmentoRepository;
 
     /**
      * Executa o pipeline de importação em 5 fases sequenciais, gerando artefatos
@@ -363,14 +368,25 @@ public class ImportarCommand implements Callable<Integer> {
             }
         }
 
-        // Verificar existência do imóvel no banco (AC5) ───────────────────────
-        if (!existenciaRepository.existeImovel(codigoImovel, sequenciaPredial, fluxo)) {
+        // Buscar idkey do imóvel no banco (Story 4.7 AC6) ───────────────────────
+        // Optional.empty() = imóvel não encontrado → pula linha inteira (inclusive UPDATE).
+        Optional<Long> idkeyOpt;
+        if (fluxo == Fluxo.TERRITORIAL) {
+            idkeyOpt = cadastroImobiliarioRepository.buscarIdKey(codigoImovel);
+        } else {
+            idkeyOpt = imobiliarioSegmentoRepository.buscarIdKey(codigoImovel, sequenciaPredial);
+        }
+        if (idkeyOpt.isEmpty()) {
+            String detalhe = fluxo == Fluxo.PREDIAL
+                    ? "cadastrogeral=" + codigoImovel + ", sequencia=" + sequenciaPredial
+                    : "cadastrogeral=" + codigoImovel;
             logErros.registrarLinhaPulada(numLinha, codigoImovel,
-                    "Imóvel não encontrado em " + fluxo.tabelaPrincipal());
+                    "Imóvel não encontrado: " + detalhe);
             resumo.registrarErro();
             barra.atualizar(linhaExcel[0] - 1, resumo.erro());
             return;
         }
+        long idkey = idkeyOpt.get();
 
         // Construir LinhaMapeada (AC6) ─────────────────────────────────────────
         Map<String, String> celulasFixas = new LinkedHashMap<>();
@@ -399,7 +415,7 @@ public class ImportarCommand implements Callable<Integer> {
         }
 
         // Geração UPSERT (AC8) ─────────────────────────────────────────────────
-        ResultadoUpsert resultadoUpsert = GERADOR_UPSERT.gerar(linhaMapeada, mapeamento, fluxo, COERCIONADOR);
+        ResultadoUpsert resultadoUpsert = GERADOR_UPSERT.gerar(linhaMapeada, mapeamento, fluxo, COERCIONADOR, idkey);
         if (resultadoUpsert.ok()) {
             for (String sql : resultadoUpsert.sqls()) {
                 sqlBuffer.append(sql).append("\n");
