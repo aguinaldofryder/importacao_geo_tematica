@@ -60,12 +60,17 @@ import br.com.arxcode.tematica.geo.mapeamento.StatusMapeamento;
  *
  * <p><strong>Política de erro (PRD FR-13).</strong> Falhas de coerção são
  * dados, não exceções: vão para {@link ResultadoUpsert#erros()}. Falhas de
- * <em>todas</em> as células dinâmicas e do {@code codigoImovel} são acumuladas
- * (não há short-circuit no primeiro erro) — fecha plenamente o ramo de
- * acumulação que a Story 4.2 só pôde exercitar documentalmente
- * (ISSUE-4.2-02). Em qualquer falha, nenhum SQL é emitido.
+ * <em>todas</em> as células dinâmicas são acumuladas (não há short-circuit
+ * no primeiro erro). Em qualquer falha, nenhum SQL é emitido.
  *
- * <p>Story: 4.3 — SqlGeradorUpsert.
+ * <p><strong>Story 4.7:</strong> o parâmetro {@code referencia} ({@code long})
+ * substitui o uso anterior de {@code linha.codigoImovel()} como valor da coluna
+ * {@code referencia}. O {@code idkey} é buscado pelo {@code ImportarCommand}
+ * (que tem acesso ao banco via CDI) e repassado a este gerador (função pura).
+ * {@code referencia} é convertido com {@code String.valueOf()} — sem aspas,
+ * sem escape, sem possibilidade de SQL injection (primitivo Java).
+ *
+ * <p>Story: 4.3 — SqlGeradorUpsert. Story: 4.7 — referencia via idkey.
  */
 public final class SqlGeradorUpsert {
 
@@ -95,13 +100,18 @@ public final class SqlGeradorUpsert {
      * @param mapeamento    mapeamento header→coluna (não-{@code null})
      * @param fluxo         {@link Fluxo#TERRITORIAL} ou {@link Fluxo#PREDIAL} (não-{@code null})
      * @param coercionador  conversor de células em literais SQL (não-{@code null})
+     * @param referencia    {@code idkey} interno buscado pelo {@code ImportarCommand} via repositório;
+     *                      usado como valor da coluna {@code referencia} nas tabelas de respostas
+     *                      (Story 4.7 — substitui o uso anterior de {@code linha.codigoImovel()})
      * @return resultado em sucesso (com lista de SQLs, possivelmente vazia)
      *         ou falha (com lista de erros PT)
-     * @throws IllegalArgumentException se qualquer parâmetro for {@code null}
+     * @throws IllegalArgumentException se qualquer parâmetro de referência ({@code linha},
+     *         {@code mapeamento}, {@code fluxo}, {@code coercionador}) for {@code null}
      *         (programação defeituosa, não dado ruim — não vira
      *         {@code ResultadoUpsert.falha})
      */
-    public ResultadoUpsert gerar(LinhaMapeada linha, Mapeamento mapeamento, Fluxo fluxo, Coercionador coercionador) {
+    public ResultadoUpsert gerar(LinhaMapeada linha, Mapeamento mapeamento, Fluxo fluxo, Coercionador coercionador,
+                                  long referencia) {
         if (linha == null) {
             throw new IllegalArgumentException("linha não pode ser nula.");
         }
@@ -118,15 +128,9 @@ public final class SqlGeradorUpsert {
         List<String> erros = new ArrayList<>();
         List<String> sqls = new ArrayList<>();
 
-        // Coage o codigoImovel como TEXTO (chave da referencia) — defesa em
-        // profundidade. Falha acumula como erro nominal.
-        ResultadoCoercao rcRef = coercionador.coagir(linha.codigoImovel(), Tipo.TEXTO, null);
-        String referenciaLiteral = null;
-        if (rcRef.ok()) {
-            referenciaLiteral = rcRef.literalSql();
-        } else {
-            erros.add("Código do imóvel: " + rcRef.erro());
-        }
+        // referencia é long (primitivo Java) — String.valueOf garante literal numérico
+        // sem aspas, sem escape, sem possibilidade de SQL injection (Story 4.7 AC4).
+        String referenciaLiteral = String.valueOf(referencia);
 
         // Itera colunas dinâmicas preservando ordem (LinkedHashMap esperado).
         for (Map.Entry<String, ColunaDinamica> entry : mapeamento.colunasDinamicas().entrySet()) {

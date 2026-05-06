@@ -44,6 +44,8 @@
 | [4.4](./4.4.log-erros-estruturado.md) ✅ | LogErros estruturado | @dev | 0,3 h | 1.2 |
 | [4.5](./4.5.comando-importar.md) | Comando `importar` | @dev | 1,5 h | 3.3, 3.4, 4.1, 4.2, 4.3, 4.4 |
 | [4.6](./4.6.tipagem-completa-colunas-fixas.md) 📋 | Tipagem completa das colunas fixas (DECIMAL/DATA) — Backlog, refino pós-4.5 | @dev | 3–5 h | 4.2, 4.3, 4.4, 4.5 |
+| [4.7](./4.7.repositorios-idkey-referencia.md) ✅ | Repositórios de `idkey` e correção da `referencia` no UPSERT | @dev | 2,5 h | 2.3, 4.3, 4.5 |
+| [4.8](./4.8.conversao-antecipada-codigo-imovel-long.md) | Conversão antecipada de `codigoImovel`/`sequenciaPredial` para `long` em `LinhaMapeada` | @dev | 2 h | 4.2, 4.3, 4.5 |
 
 ## Épico 5 — Resumo pós-importação
 

@@ -24,9 +24,14 @@ import br.com.arxcode.tematica.geo.mapeamento.StatusMapeamento;
 /**
  * Testes do {@link SqlGeradorUpsert} — função pura, JUnit Jupiter puro.
  *
- * <p>Cobertura dos critérios de aceite AC2–AC11, AC15. Usa
+ * <p>Cobertura dos critérios de aceite AC2–AC10, AC15. Usa
  * {@link LinkedHashMap} explícito em colunasDinamicas/celulasDinamicas
  * (premissa de ordem — pendência ISSUE-4.2-01).
+ *
+ * <p>Story 4.7: assinatura do {@code gerar} agora recebe {@code long referencia};
+ * SQLs esperados usam o {@code idkey} numérico sem aspas como {@code referencia}.
+ * As classes {@code EscapeReferencia} e {@code EscapeInjection} foram removidas —
+ * a superfície de ataque foi eliminada ao usar {@code long} em vez de {@code String}.
  */
 class SqlGeradorUpsertTest {
 
@@ -56,14 +61,14 @@ class SqlGeradorUpsertTest {
         void linhaNula_lancaIae() {
             Mapeamento m = mapeamentoComDinamicas(Fluxo.TERRITORIAL, Map.of());
             assertThrows(IllegalArgumentException.class,
-                    () -> gerador.gerar(null, m, Fluxo.TERRITORIAL, coercionador));
+                    () -> gerador.gerar(null, m, Fluxo.TERRITORIAL, coercionador, 1L));
         }
 
         @Test
         void mapeamentoNulo_lancaIae() {
             LinhaMapeada l = new LinhaMapeada("123", null, Map.of(), Map.of());
             assertThrows(IllegalArgumentException.class,
-                    () -> gerador.gerar(l, null, Fluxo.TERRITORIAL, coercionador));
+                    () -> gerador.gerar(l, null, Fluxo.TERRITORIAL, coercionador, 1L));
         }
 
         @Test
@@ -71,7 +76,7 @@ class SqlGeradorUpsertTest {
             LinhaMapeada l = new LinhaMapeada("123", null, Map.of(), Map.of());
             Mapeamento m = mapeamentoComDinamicas(Fluxo.TERRITORIAL, Map.of());
             assertThrows(IllegalArgumentException.class,
-                    () -> gerador.gerar(l, m, null, coercionador));
+                    () -> gerador.gerar(l, m, null, coercionador, 1L));
         }
 
         @Test
@@ -79,7 +84,7 @@ class SqlGeradorUpsertTest {
             LinhaMapeada l = new LinhaMapeada("123", null, Map.of(), Map.of());
             Mapeamento m = mapeamentoComDinamicas(Fluxo.TERRITORIAL, Map.of());
             assertThrows(IllegalArgumentException.class,
-                    () -> gerador.gerar(l, m, Fluxo.TERRITORIAL, null));
+                    () -> gerador.gerar(l, m, Fluxo.TERRITORIAL, null, 1L));
         }
     }
 
@@ -94,7 +99,7 @@ class SqlGeradorUpsertTest {
             LinhaMapeada linha = new LinhaMapeada("ABC", null, Map.of(), Map.of());
             Mapeamento m = mapeamentoComDinamicas(fluxo, Map.of());
 
-            ResultadoUpsert r = gerador.gerar(linha, m, fluxo, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, fluxo, coercionador, 1L);
 
             assertTrue(r.ok(), () -> "esperado ok=true; erros=" + r.erros());
             assertEquals(List.of(), r.sqls());
@@ -112,7 +117,7 @@ class SqlGeradorUpsertTest {
             celulas.put("CAMPO_B", "   ");
             LinhaMapeada linha = new LinhaMapeada("X1", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
 
             assertTrue(r.ok());
             assertEquals(List.of(), r.sqls());
@@ -128,7 +133,7 @@ class SqlGeradorUpsertTest {
             celulas.put("CAMPO_A", "valor qualquer");
             LinhaMapeada linha = new LinhaMapeada("X1", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
 
             assertTrue(r.ok());
             assertEquals(List.of(), r.sqls());
@@ -152,7 +157,7 @@ class SqlGeradorUpsertTest {
             celulas.put("CAMPO_OK", "valor ok");
             LinhaMapeada linha = new LinhaMapeada("REF1", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 12345L);
 
             assertTrue(r.ok());
             // 2 SQLs (1 par DELETE+INSERT) — só CAMPO_OK gerou.
@@ -176,7 +181,7 @@ class SqlGeradorUpsertTest {
             celulas.put("CAMPO_OK", "valor");
             LinhaMapeada linha = new LinhaMapeada("REF", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 99L);
 
             assertTrue(r.ok());
             assertEquals(2, r.sqls().size());
@@ -192,7 +197,7 @@ class SqlGeradorUpsertTest {
             // Linha sem celula para CAMPO_AUSENTE
             LinhaMapeada linha = new LinhaMapeada("REF", null, Map.of(), Map.of());
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 99L);
 
             assertTrue(r.ok());
             assertEquals(List.of(), r.sqls());
@@ -205,25 +210,25 @@ class SqlGeradorUpsertTest {
     class FormaSqlPorTipo {
 
         @Test
-        void texto_geraSqlComValorAspeadoEIdAlternativaNull() {
+        void texto_geraSqlComReferenciaNumericaEIdAlternativaNull() {
             Map<String, ColunaDinamica> dinamicas = new LinkedHashMap<>();
             dinamicas.put("OBSERVACAO", colunaMapeada(100, Tipo.TEXTO, null));
             Mapeamento m = mapeamentoComDinamicas(Fluxo.TERRITORIAL, dinamicas);
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("OBSERVACAO", "casa simples");
-            LinhaMapeada linha = new LinhaMapeada("R1", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada("12345", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
 
             assertTrue(r.ok(), () -> "erros=" + r.erros());
             assertEquals(2, r.sqls().size());
             assertEquals(
-                    "DELETE FROM aise.respostaterreno WHERE referencia = 'R1' AND idcampo = 100;",
+                    "DELETE FROM aise.respostaterreno WHERE referencia = 98765 AND idcampo = 100;",
                     r.sqls().get(0));
             assertEquals(
                     "INSERT INTO aise.respostaterreno (id, referencia, valor, idcampo, idalternativa) VALUES "
-                            + "(nextval('aise.s_respostaterreno_id'), 'R1', 'casa simples', 100, NULL);",
+                            + "(nextval('aise.s_respostaterreno_id'), 98765, 'casa simples', 100, NULL);",
                     r.sqls().get(1));
         }
 
@@ -235,17 +240,17 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("AREA", "1234.56");
-            LinhaMapeada linha = new LinhaMapeada("R1", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada("12345", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
 
             assertTrue(r.ok());
             assertEquals(
-                    "DELETE FROM aise.respostaterreno WHERE referencia = 'R1' AND idcampo = 200;",
+                    "DELETE FROM aise.respostaterreno WHERE referencia = 98765 AND idcampo = 200;",
                     r.sqls().get(0));
             assertEquals(
                     "INSERT INTO aise.respostaterreno (id, referencia, valor, idcampo, idalternativa) VALUES "
-                            + "(nextval('aise.s_respostaterreno_id'), 'R1', '1234.56', 200, NULL);",
+                            + "(nextval('aise.s_respostaterreno_id'), 98765, '1234.56', 200, NULL);",
                     r.sqls().get(1));
         }
 
@@ -257,14 +262,14 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("DT_AVAL", "2024-01-15");
-            LinhaMapeada linha = new LinhaMapeada("R1", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada("12345", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
 
             assertTrue(r.ok());
             assertEquals(
                     "INSERT INTO aise.respostaterreno (id, referencia, valor, idcampo, idalternativa) VALUES "
-                            + "(nextval('aise.s_respostaterreno_id'), 'R1', '15/01/2024', 300, NULL);",
+                            + "(nextval('aise.s_respostaterreno_id'), 98765, '15/01/2024', 300, NULL);",
                     r.sqls().get(1));
         }
 
@@ -277,9 +282,9 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("DT_AVAL", "15/01/2024");
-            LinhaMapeada linha = new LinhaMapeada("R1", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada("12345", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
 
             assertTrue(r.ok());
             assertTrue(r.sqls().get(1).contains("'15/01/2024'"),
@@ -297,17 +302,17 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("TIPO_IMOVEL", "CASA");
-            LinhaMapeada linha = new LinhaMapeada("R1", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada("12345", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
 
             assertTrue(r.ok(), () -> "erros=" + r.erros());
             assertEquals(
-                    "DELETE FROM aise.respostaterreno WHERE referencia = 'R1' AND idcampo = 400;",
+                    "DELETE FROM aise.respostaterreno WHERE referencia = 98765 AND idcampo = 400;",
                     r.sqls().get(0));
             assertEquals(
                     "INSERT INTO aise.respostaterreno (id, referencia, valor, idcampo, idalternativa) VALUES "
-                            + "(nextval('aise.s_respostaterreno_id'), 'R1', '', 400, 7);",
+                            + "(nextval('aise.s_respostaterreno_id'), 98765, '', 400, 7);",
                     r.sqls().get(1));
         }
 
@@ -319,13 +324,13 @@ class SqlGeradorUpsertTest {
 
             Map<String, String> celulas = new LinkedHashMap<>();
             celulas.put("OBSERVACAO", "obs");
-            LinhaMapeada linha = new LinhaMapeada("R2", null, Map.of(), celulas);
+            LinhaMapeada linha = new LinhaMapeada("12345", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.PREDIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.PREDIAL, coercionador, 55500L);
 
             assertTrue(r.ok());
             assertEquals(
-                    "DELETE FROM aise.respostasegmento WHERE referencia = 'R2' AND idcampo = 100;",
+                    "DELETE FROM aise.respostasegmento WHERE referencia = 55500 AND idcampo = 100;",
                     r.sqls().get(0));
             assertTrue(r.sqls().get(1).contains("nextval('aise.s_respostasegmento_id')"),
                     () -> "Predial deveria usar sequence respostasegmento: " + r.sqls().get(1));
@@ -349,7 +354,7 @@ class SqlGeradorUpsertTest {
             celulas.put("DATA_AVAL", "xyz");
             LinhaMapeada linha = new LinhaMapeada("R1", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
 
             assertFalse(r.ok());
             assertEquals(List.of(), r.sqls(), "nenhum SQL emitido em falha");
@@ -369,7 +374,7 @@ class SqlGeradorUpsertTest {
             celulas.put("TIPO", "INEXISTENTE");
             LinhaMapeada linha = new LinhaMapeada("R1", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
 
             assertFalse(r.ok());
             assertEquals(1, r.erros().size());
@@ -388,7 +393,7 @@ class SqlGeradorUpsertTest {
             celulas.put("RUIM_DECIMAL", "abc");
             LinhaMapeada linha = new LinhaMapeada("R1", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
 
             assertFalse(r.ok());
             assertEquals(List.of(), r.sqls());
@@ -396,68 +401,29 @@ class SqlGeradorUpsertTest {
         }
     }
 
-    // ---------- AC10: escape em referencia (CON-03) ----------
+    // ---------- AC10: borda referencia = 0L ----------
 
     @Nested
-    class EscapeReferencia {
+    class BordaReferencia {
 
         @Test
-        void codigoComAspaSimples_escapaNoDeleteEInsert() {
+        void referenciaZero_produzReferenciaZeroNoSql() {
+            // Verifica que referencia=0L produz literal "0" sem aspas (borda AC10).
             Map<String, ColunaDinamica> dinamicas = new LinkedHashMap<>();
             dinamicas.put("OBS", colunaMapeada(10, Tipo.TEXTO, null));
             Mapeamento m = mapeamentoComDinamicas(Fluxo.TERRITORIAL, dinamicas);
 
             Map<String, String> celulas = new LinkedHashMap<>();
-            celulas.put("OBS", "ok");
-            LinhaMapeada linha = new LinhaMapeada("O'Brien", null, Map.of(), celulas);
+            celulas.put("OBS", "v");
+            LinhaMapeada linha = new LinhaMapeada("0", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
-
-            assertTrue(r.ok());
-            assertTrue(r.sqls().get(0).contains("referencia = 'O''Brien'"),
-                    () -> "DELETE deve escapar aspas: " + r.sqls().get(0));
-            assertTrue(r.sqls().get(1).contains("'O''Brien'"),
-                    () -> "INSERT deve escapar aspas: " + r.sqls().get(1));
-        }
-    }
-
-    // ---------- AC11: tentativa de injection ----------
-
-    @Nested
-    class EscapeInjection {
-
-        @Test
-        void injectionNaReferencia_viraLiteralInerte() {
-            Map<String, ColunaDinamica> dinamicas = new LinkedHashMap<>();
-            dinamicas.put("OBS", colunaMapeada(10, Tipo.TEXTO, null));
-            Mapeamento m = mapeamentoComDinamicas(Fluxo.TERRITORIAL, dinamicas);
-
-            Map<String, String> celulas = new LinkedHashMap<>();
-            celulas.put("OBS", "ok");
-            LinhaMapeada linha = new LinhaMapeada("1'; DROP TABLE x; --", null, Map.of(), celulas);
-
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 0L);
 
             assertTrue(r.ok());
-            assertTrue(r.sqls().get(0).contains("'1''; DROP TABLE x; --'"),
-                    () -> "Injection deve virar literal escapado: " + r.sqls().get(0));
-        }
-
-        @Test
-        void valorTextoComAspas_escapaNoInsert() {
-            Map<String, ColunaDinamica> dinamicas = new LinkedHashMap<>();
-            dinamicas.put("OBS", colunaMapeada(10, Tipo.TEXTO, null));
-            Mapeamento m = mapeamentoComDinamicas(Fluxo.TERRITORIAL, dinamicas);
-
-            Map<String, String> celulas = new LinkedHashMap<>();
-            celulas.put("OBS", "x'y");
-            LinhaMapeada linha = new LinhaMapeada("R1", null, Map.of(), celulas);
-
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador);
-
-            assertTrue(r.ok());
-            assertTrue(r.sqls().get(1).contains("'x''y'"),
-                    () -> "Valor texto deve ter aspas escapadas: " + r.sqls().get(1));
+            assertTrue(r.sqls().get(0).contains("referencia = 0"),
+                    () -> "referencia=0L deve produzir literal 0: " + r.sqls().get(0));
+            assertTrue(r.sqls().get(1).contains(", 0, "),
+                    () -> "INSERT deve conter 0 como referencia: " + r.sqls().get(1));
         }
     }
 
@@ -477,7 +443,7 @@ class SqlGeradorUpsertTest {
             celulas.put("OBS", "v");
             LinhaMapeada linha = new LinhaMapeada("REF", null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, fluxo, coercionador);
+            ResultadoUpsert r = gerador.gerar(linha, m, fluxo, coercionador, 12345L);
 
             assertTrue(r.ok());
             assertEquals(2, r.sqls().size());
