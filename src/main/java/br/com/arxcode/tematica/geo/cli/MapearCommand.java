@@ -227,7 +227,17 @@ public class MapearCommand implements Callable<Integer> {
         ImportacaoConfig.Mapeamento cfgMap = importacaoConfig.mapeamento();
         String nomeColunaCodigo = codigoImovelConfig.por(fluxo);
         String nomeColunaCSequencia = fluxo == Fluxo.PREDIAL ? codigoImovelConfig.sequenciaPredial() : null;
-        Set<String> colunasFixas = colunasFixasConfig.por(fluxo);
+
+        // Para fluxo PREDIAL, a coluna de sequência deve ser excluída das dinâmicas
+        // (é chave estrutural da PK, não um campo do catálogo). Inclui no set de fixas
+        // para que o ClassificadorColunas a descarte antes do auto-mapeamento.
+        Set<String> colunasFixas;
+        if (nomeColunaCSequencia != null) {
+            colunasFixas = new LinkedHashSet<>(colunasFixasConfig.por(fluxo));
+            colunasFixas.add(nomeColunaCSequencia);
+        } else {
+            colunasFixas = colunasFixasConfig.por(fluxo);
+        }
 
         // (4) Abrir planilha + Fase 1 ----------------------------------------
         Mapeamento mapeamento;
