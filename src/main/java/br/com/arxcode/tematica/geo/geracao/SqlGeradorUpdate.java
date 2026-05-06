@@ -119,24 +119,13 @@ public final class SqlGeradorUpdate {
             }
         }
 
-        // Passo 2: coagir o codigoImovel como DECIMAL — cadastrogeral é NUMERIC no banco.
-        ResultadoCoercao rcChave = coercionador.coagir(linha.codigoImovel(), Tipo.DECIMAL, null);
-        String literalCadastrogeral = null;
-        if (rcChave.ok()) {
-            literalCadastrogeral = rcChave.literalSql();
-        } else {
-            erros.add("Código do imóvel (cadastrogeral): " + rcChave.erro());
-        }
+        // Passo 2: codigoImovel já é long (Story 4.8) — literal numérico direto, sem coerção.
+        String literalCadastrogeral = String.valueOf(linha.codigoImovel());
 
-        // Passo 2b: para PREDIAL, coagir sequenciaPredial como DECIMAL.
+        // Passo 2b: para PREDIAL, sequenciaPredial já é Long (Story 4.8) — literal numérico direto.
         String literalSequencia = null;
         if (fluxo == Fluxo.PREDIAL) {
-            ResultadoCoercao rcSeq = coercionador.coagir(linha.sequenciaPredial(), Tipo.DECIMAL, null);
-            if (rcSeq.ok()) {
-                literalSequencia = rcSeq.literalSql();
-            } else {
-                erros.add("Sequência predial (sequencia): " + rcSeq.erro());
-            }
+            literalSequencia = String.valueOf(linha.sequenciaPredial());
         }
 
         // Passo 3: se acumulamos erros, abandona o UPDATE inteiro (AC9).
