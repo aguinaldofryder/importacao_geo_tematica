@@ -9,11 +9,13 @@ import br.com.arxcode.tematica.geo.excel.ExcelLeitor;
 import br.com.arxcode.tematica.geo.excel.ExcelSessao;
 import br.com.arxcode.tematica.geo.geracao.Coercionador;
 import br.com.arxcode.tematica.geo.geracao.LogErros;
+import br.com.arxcode.tematica.geo.geracao.ResultadoInsertSegmento;
 import br.com.arxcode.tematica.geo.geracao.ResultadoUpdate;
 import br.com.arxcode.tematica.geo.geracao.ResultadoUpsert;
 import br.com.arxcode.tematica.geo.geracao.ResumoExecucao;
 import br.com.arxcode.tematica.geo.geracao.ResumoRenderer;
 import br.com.arxcode.tematica.geo.geracao.ResumoSnapshot;
+import br.com.arxcode.tematica.geo.geracao.SqlGeradorInsertSegmento;
 import br.com.arxcode.tematica.geo.geracao.SqlGeradorUpdate;
 import br.com.arxcode.tematica.geo.geracao.SqlGeradorUpsert;
 import br.com.arxcode.tematica.geo.mapeamento.ColunaDinamica;
@@ -100,6 +102,9 @@ public class ImportarCommand implements Callable<Integer> {
      * Usado na Fase 4 para recusar mapeamentos com dinâmicas {@link StatusMapeamento#PENDENTE}.
      */
     private static final MapeamentoValidador VALIDADOR = new MapeamentoValidador();
+
+    /** Gerador de INSERT de segmento predial novo — não-CDI (função pura). */
+    private static final SqlGeradorInsertSegmento GERADOR_INSERT_SEGMENTO = new SqlGeradorInsertSegmento();
 
     /** Gerador de UPDATE stateless — não-CDI (padrão Story 4.2). */
     private static final SqlGeradorUpdate GERADOR_UPDATE = new SqlGeradorUpdate();
@@ -396,7 +401,8 @@ public class ImportarCommand implements Callable<Integer> {
         }
 
         // Buscar idkey do imóvel no banco (Story 4.7 AC6) ───────────────────────
-        // Optional.empty() = imóvel não encontrado → pula linha inteira (inclusive UPDATE).
+        // TERRITORIAL: Optional.empty() = imóvel não encontrado → pula linha inteira.
+        // PREDIAL: Optional.empty() = construção nova → gerar INSERT ao invés de pular.
         Optional<Long> idkeyOpt;
         if (fluxo == Fluxo.TERRITORIAL) {
             idkeyOpt = cadastroImobiliarioRepository.buscarIdKey(codigoImovelStr);
@@ -404,17 +410,25 @@ public class ImportarCommand implements Callable<Integer> {
             idkeyOpt = imobiliarioSegmentoRepository.buscarIdKey(codigoImovelStr,
                     String.valueOf(sequenciaPredial));
         }
-        if (idkeyOpt.isEmpty()) {
-            String detalhe = fluxo == Fluxo.PREDIAL
-                    ? "cadastrogeral=" + codigoImovelStr + ", sequencia=" + sequenciaPredial
-                    : "cadastrogeral=" + codigoImovelStr;
+        if (idkeyOpt.isEmpty() && fluxo == Fluxo.TERRITORIAL) {
             logErros.registrarLinhaPulada(numLinha, codigoImovelStr,
-                    "Imóvel não encontrado: " + detalhe);
+                    "Imóvel não encontrado: cadastrogeral=" + codigoImovelStr);
             resumo.registrarErro();
             barra.atualizar(linhaExcel[0] - 1, resumo.erro());
             return;
         }
-        long idkey = idkeyOpt.get();
+
+        // Definir referenciaLiteral: idkey numérico (existente) ou subselect (nova construção predial).
+        // Para PREDIAL com construção nova, também gera o INSERT na tabela principal.
+        String referenciaLiteral;
+        boolean construcaoNova = false;
+        if (idkeyOpt.isPresent()) {
+            referenciaLiteral = String.valueOf(idkeyOpt.get());
+        } else {
+            // PREDIAL — construção não encontrada: será inserida via SqlGeradorInsertSegmento.
+            construcaoNova = true;
+            referenciaLiteral = null; // será preenchido após gerar INSERT
+        }
 
         // Construir LinhaMapeada (AC6) ─────────────────────────────────────────
         Map<String, String> celulasFixas = new LinkedHashMap<>();
@@ -432,18 +446,37 @@ public class ImportarCommand implements Callable<Integer> {
         LinhaMapeada linhaMapeada = new LinhaMapeada(codigoImovel, sequenciaPredial, celulasFixas, celulasDinamicas);
         boolean houveErroNaLinha = false;
 
+        // Geração INSERT de nova construção predial (quando construcaoNova) ────
+        if (construcaoNova) {
+            ResultadoInsertSegmento resultadoInsert = GERADOR_INSERT_SEGMENTO.gerar(linhaMapeada, mapeamento, COERCIONADOR);
+            if (resultadoInsert.ok()) {
+                sqlBuffer.append(resultadoInsert.sql()).append("\n");
+                referenciaLiteral = resultadoInsert.referenciaSubselect();
+                LOG.debugf("Construção predial nova gerada: cadastrogeral=%s, sequencia=%s",
+                        codigoImovelStr, sequenciaPredial);
+            } else {
+                logErros.registrarErrosLinha(numLinha, codigoImovelStr, resultadoInsert.erros());
+                resumo.registrarErro();
+                barra.atualizar(linhaExcel[0] - 1, resumo.erro());
+                return;
+            }
+        }
+
         // Geração UPDATE (AC7) ─────────────────────────────────────────────────
-        ResultadoUpdate resultadoUpdate = GERADOR_UPDATE.gerar(linhaMapeada, mapeamento, fluxo, COERCIONADOR);
-        if (resultadoUpdate.ok()) {
-            sqlBuffer.append(resultadoUpdate.sql()).append("\n");
-            resumo.registrarUpdatePrincipal();
-        } else {
-            logErros.registrarErrosLinha(numLinha, codigoImovelStr, resultadoUpdate.erros());
-            houveErroNaLinha = true;
+        // Para construção nova, o UPDATE é omitido (não há registro anterior a atualizar).
+        if (!construcaoNova) {
+            ResultadoUpdate resultadoUpdate = GERADOR_UPDATE.gerar(linhaMapeada, mapeamento, fluxo, COERCIONADOR);
+            if (resultadoUpdate.ok()) {
+                sqlBuffer.append(resultadoUpdate.sql()).append("\n");
+                resumo.registrarUpdatePrincipal();
+            } else {
+                logErros.registrarErrosLinha(numLinha, codigoImovelStr, resultadoUpdate.erros());
+                houveErroNaLinha = true;
+            }
         }
 
         // Geração UPSERT (AC8) ─────────────────────────────────────────────────
-        ResultadoUpsert resultadoUpsert = GERADOR_UPSERT.gerar(linhaMapeada, mapeamento, fluxo, COERCIONADOR, idkey);
+        ResultadoUpsert resultadoUpsert = GERADOR_UPSERT.gerar(linhaMapeada, mapeamento, fluxo, COERCIONADOR, referenciaLiteral);
         if (resultadoUpsert.ok()) {
             for (String sql : resultadoUpsert.sqls()) {
                 sqlBuffer.append(sql).append("\n");

@@ -48,29 +48,39 @@ public enum Fluxo {
      * Tabela principal: {@code tribcadastroimobiliario}; respostas: {@code respostaterreno};
      * funcionalidade no catálogo: {@code "TERRENO"};
      * coluna de referência FK: {@code tribcadastrogeral_idkey}.
+     * Sem inserção na tabela principal — {@code sequencePrincipal} é {@code null}.
      */
-    TERRITORIAL("TERRENO", "tribcadastroimobiliario", "respostaterreno", "tribcadastrogeral_idkey", "s_respostaterreno_id"),
+    TERRITORIAL("TERRENO", "tribcadastroimobiliario", "respostaterreno", "tribcadastrogeral_idkey", "s_respostaterreno_id", null),
 
     /**
      * Fluxo Predial — planilha {@code TABELA_PREDIAL_V001.xlsx}.
      * Tabela principal: {@code tribimobiliariosegmento}; respostas: {@code respostasegmento};
      * funcionalidade no catálogo: {@code "SEGMENTO"};
      * coluna de referência FK: {@code idkey}.
+     * Permite inserção de construções novas via {@code sequencePrincipal}.
      */
-    PREDIAL("SEGMENTO", "tribimobiliariosegmento", "respostasegmento", "idkey", "s_respostasegmento_id");
+    PREDIAL("SEGMENTO", "tribimobiliariosegmento", "respostasegmento", "idkey", "s_respostasegmento_id", "s_tribimobiliariosegmento_id");
 
     private final String funcionalidade;
     private final String tabelaPrincipal;
     private final String tabelaRespostas;
     private final String colunaReferencia;
     private final String sequenceRespostas;
+    /**
+     * Nome da sequence Postgres para a coluna {@code idkey} da tabela principal.
+     * {@code null} para fluxos que nunca inserem na tabela principal (TERRITORIAL).
+     * Presente apenas em {@link #PREDIAL} — {@code s_tribimobiliariosegmento_id}.
+     */
+    private final String sequencePrincipal;
 
-    Fluxo(String funcionalidade, String tabelaPrincipal, String tabelaRespostas, String colunaReferencia, String sequenceRespostas) {
+    Fluxo(String funcionalidade, String tabelaPrincipal, String tabelaRespostas, String colunaReferencia,
+          String sequenceRespostas, String sequencePrincipal) {
         this.funcionalidade = funcionalidade;
         this.tabelaPrincipal = tabelaPrincipal;
         this.tabelaRespostas = tabelaRespostas;
         this.colunaReferencia = colunaReferencia;
         this.sequenceRespostas = sequenceRespostas;
+        this.sequencePrincipal = sequencePrincipal;
     }
 
     /**
@@ -129,5 +139,18 @@ public enum Fluxo {
      */
     public String sequenceRespostas() {
         return sequenceRespostas;
+    }
+
+    /**
+     * Nome físico da sequence Postgres usada para alimentar a coluna {@code idkey}
+     * da tabela principal quando uma nova construção precisa ser inserida.
+     * {@code null} para {@link #TERRITORIAL} (tabela principal nunca recebe INSERT).
+     * Para {@link #PREDIAL}: {@code s_tribimobiliariosegmento_id}.
+     *
+     * <p>Consumida por {@code SqlGeradorInsertSegmento} na cláusula
+     * {@code VALUES (nextval('aise.<seq>'), ...)} do INSERT de nova construção.
+     */
+    public String sequencePrincipal() {
+        return sequencePrincipal;
     }
 }

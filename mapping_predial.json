@@ -1,0 +1,53 @@
+{
+  "fluxo" : "PREDIAL",
+  "planilha" : "TABELA_PREDIAL_V001.xlsx",
+  "colunaCodigoImovel" : "COD",
+  "colunasFixas" : { },
+  "colunasDinamicas" : {
+    "UNIDADE" : {
+      "status" : "PENDENTE",
+      "motivo" : "Nenhum campo encontrado com descricao='UNIDADE'"
+    },
+    "ATIVIDADE" : {
+      "status" : "PENDENTE",
+      "idcampo" : 874016,
+      "tipo" : "MULTIPLA_ESCOLHA",
+      "alternativas" : {
+        "Residencial" : 874066,
+        "Misto" : 874069,
+        "Comercial" : 874067,
+        "Industrial" : 874068,
+        "Templos" : null,
+        "Público" : null,
+        "Piscina" : null
+      },
+      "motivo" : "3 de 7 alternativas sem mapeamento"
+    },
+    "ESTRUTURA" : {
+      "status" : "PENDENTE",
+      "motivo" : "Múltiplos campos encontrados com descricao='ESTRUTURA': IDs 554775,874015",
+      "sugestoes" : [ 554775, 874015 ]
+    },
+    "PADRÃO" : {
+      "status" : "PENDENTE",
+      "idcampo" : 874017,
+      "tipo" : "MULTIPLA_ESCOLHA",
+      "alternativas" : {
+        "Médio Padrão" : 874071,
+        "Baixo Padrão" : 874072,
+        "Precário" : 874073,
+        "Alto Padrão" : 874070,
+        "Piscina" : null
+      },
+      "motivo" : "1 de 5 alternativas sem mapeamento"
+    },
+    "PAVIMENTOS" : {
+      "status" : "PENDENTE",
+      "motivo" : "Nenhum campo encontrado com descricao='PAVIMENTOS'"
+    },
+    "ÁREA" : {
+      "status" : "PENDENTE",
+      "motivo" : "Nenhum campo encontrado com descricao='ÁREA'"
+    }
+  }
+}

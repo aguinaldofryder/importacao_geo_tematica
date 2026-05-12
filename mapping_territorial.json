@@ -1,0 +1,86 @@
+{
+  "fluxo" : "TERRITORIAL",
+  "planilha" : "TABELA_TERRITORIAL_V001.xlsx",
+  "colunaCodigoImovel" : "COD",
+  "colunasFixas" : { },
+  "colunasDinamicas" : {
+    "UTILIZAÇÃO" : {
+      "status" : "PENDENTE",
+      "idcampo" : 554800,
+      "tipo" : "MULTIPLA_ESCOLHA",
+      "alternativas" : {
+        "Edificado" : null,
+        "Terreno Vazio" : null,
+        "Obra Paralizada" : null
+      },
+      "motivo" : "3 de 3 alternativas sem mapeamento (idcampo=554800 informado; verifique a tabela alternativa)"
+    },
+    "PATRIMÔNIO" : {
+      "status" : "MAPEADO",
+      "idcampo" : 554779,
+      "tipo" : "MULTIPLA_ESCOLHA",
+      "alternativas" : {
+        "Particular" : 555042,
+        "Público" : 555049
+      }
+    },
+    "POSICIONAMENTO" : {
+      "status" : "PENDENTE",
+      "motivo" : "Nenhum campo encontrado com descricao='POSICIONAMENTO'"
+    },
+    "ZONA FISCAL" : {
+      "status" : "PENDENTE",
+      "idcampo" : 874010,
+      "tipo" : "MULTIPLA_ESCOLHA",
+      "alternativas" : {
+        "Zona Fiscal 02" : 874013,
+        "Zona Fiscal 03" : 874014,
+        "Zona Fiscal 05" : 874016,
+        "Zona Fiscal 11" : 874022,
+        "Zona Fiscal 07" : 874018,
+        "Zona Fiscal 13" : null,
+        "Zona Fiscal 12" : 874023,
+        "Zona Fiscal 08" : 874019,
+        "Zona Fiscal 06" : 874017,
+        "Zona Fiscal 10" : 874021,
+        "Zona Fiscal 09" : 874020,
+        "Zona Fiscal 01" : 874012,
+        "Zona Fiscal 04" : 874015
+      },
+      "motivo" : "1 de 13 alternativas sem mapeamento (idcampo=874010 informado; verifique a tabela alternativa)"
+    },
+    "PAVIMENTAÇÃO" : {
+      "status" : "MAPEADO",
+      "idcampo" : 874011,
+      "tipo" : "MULTIPLA_ESCOLHA",
+      "alternativas" : {
+        "Sim" : 874024
+      }
+    },
+    "ESGOTO" : {
+      "status" : "PENDENTE",
+      "motivo" : "Nenhum campo encontrado com descricao='ESGOTO'"
+    },
+    "TOPOGRAFIA" : {
+      "status" : "MAPEADO",
+      "idcampo" : 554803,
+      "tipo" : "MULTIPLA_ESCOLHA",
+      "alternativas" : {
+        "Plano" : 555004,
+        "Aclive" : 555000
+      }
+    },
+    "COLETA_LIXO" : {
+      "status" : "PENDENTE",
+      "motivo" : "Nenhum campo encontrado com descricao='COLETA_LIXO'"
+    },
+    "PISCINA" : {
+      "status" : "PENDENTE",
+      "motivo" : "Nenhum campo encontrado com descricao='PISCINA'"
+    },
+    "ÁREA LOTE TRIBUTADA" : {
+      "status" : "PENDENTE",
+      "motivo" : "Nenhum campo encontrado com descricao='ÁREA LOTE TRIBUTADA'"
+    }
+  }
+}

@@ -67,8 +67,17 @@ import br.com.arxcode.tematica.geo.mapeamento.StatusMapeamento;
  * substitui o uso anterior de {@code linha.codigoImovel()} como valor da coluna
  * {@code referencia}. O {@code idkey} é buscado pelo {@code ImportarCommand}
  * (que tem acesso ao banco via CDI) e repassado a este gerador (função pura).
- * {@code referencia} é convertido com {@code String.valueOf()} — sem aspas,
- * sem escape, sem possibilidade de SQL injection (primitivo Java).
+ *
+ * <p><strong>Extensão para construções novas (PREDIAL):</strong> quando a construção
+ * ainda não existe em {@code tribimobiliariosegmento}, o {@code ImportarCommand}
+ * gera um INSERT via {@link SqlGeradorInsertSegmento} e repassa o
+ * {@code referenciaSubselect} retornado como valor do parâmetro {@code referenciaLiteral}.
+ * Esse subselect tem a forma
+ * {@code (SELECT idkey FROM aise.tribimobiliariosegmento WHERE tipocadastro=1
+ * AND cadastrogeral=N AND sequencia=S)} — resolvido em tempo de execução do SQL
+ * no banco de produção, sem dependência de timing nesta ferramenta.
+ * Quando o {@code idkey} já existe, o chamador passa {@code String.valueOf(idkey)}
+ * (literal numérico sem aspas — sem possibilidade de SQL injection).
  *
  * <p>Story: 4.3 — SqlGeradorUpsert. Story: 4.7 — referencia via idkey.
  */
@@ -100,9 +109,12 @@ public final class SqlGeradorUpsert {
      * @param mapeamento    mapeamento header→coluna (não-{@code null})
      * @param fluxo         {@link Fluxo#TERRITORIAL} ou {@link Fluxo#PREDIAL} (não-{@code null})
      * @param coercionador  conversor de células em literais SQL (não-{@code null})
-     * @param referencia    {@code idkey} interno buscado pelo {@code ImportarCommand} via repositório;
-     *                      usado como valor da coluna {@code referencia} nas tabelas de respostas
-     *                      (Story 4.7 — substitui o uso anterior de {@code linha.codigoImovel()})
+     * @param referenciaLiteral literal SQL pronto para uso como valor da coluna {@code referencia}
+     *                      nas tabelas de respostas. Para construções já existentes no banco: literal
+     *                      numérico sem aspas (ex: {@code "999"}) obtido via
+     *                      {@code String.valueOf(idkey)}. Para construções novas (PREDIAL): subselect
+     *                      {@code (SELECT idkey FROM aise.tribimobiliariosegmento WHERE ...)} retornado
+     *                      por {@link SqlGeradorInsertSegmento#gerar}. Nunca {@code null} ou blank.
      * @return resultado em sucesso (com lista de SQLs, possivelmente vazia)
      *         ou falha (com lista de erros PT)
      * @throws IllegalArgumentException se qualquer parâmetro de referência ({@code linha},
@@ -111,7 +123,7 @@ public final class SqlGeradorUpsert {
      *         {@code ResultadoUpsert.falha})
      */
     public ResultadoUpsert gerar(LinhaMapeada linha, Mapeamento mapeamento, Fluxo fluxo, Coercionador coercionador,
-                                  long referencia) {
+                                  String referenciaLiteral) {
         if (linha == null) {
             throw new IllegalArgumentException("linha não pode ser nula.");
         }
@@ -124,13 +136,15 @@ public final class SqlGeradorUpsert {
         if (coercionador == null) {
             throw new IllegalArgumentException("coercionador não pode ser nulo.");
         }
+        if (referenciaLiteral == null || referenciaLiteral.isBlank()) {
+            throw new IllegalArgumentException("referenciaLiteral não pode ser nulo ou blank.");
+        }
 
         List<String> erros = new ArrayList<>();
         List<String> sqls = new ArrayList<>();
 
-        // referencia é long (primitivo Java) — String.valueOf garante literal numérico
-        // sem aspas, sem escape, sem possibilidade de SQL injection (Story 4.7 AC4).
-        String referenciaLiteral = String.valueOf(referencia);
+        // referenciaLiteral é passado pelo chamador: literal numérico (idkey existente)
+        // ou subselect (construção nova). Usado diretamente na concatenação SQL.
 
         // Itera colunas dinâmicas preservando ordem (LinkedHashMap esperado).
         for (Map.Entry<String, ColunaDinamica> entry : mapeamento.colunasDinamicas().entrySet()) {

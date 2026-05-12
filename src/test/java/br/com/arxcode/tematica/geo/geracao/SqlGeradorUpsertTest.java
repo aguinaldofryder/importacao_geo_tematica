@@ -61,14 +61,14 @@ class SqlGeradorUpsertTest {
         void linhaNula_lancaIae() {
             Mapeamento m = mapeamentoComDinamicas(Fluxo.TERRITORIAL, Map.of());
             assertThrows(IllegalArgumentException.class,
-                    () -> gerador.gerar(null, m, Fluxo.TERRITORIAL, coercionador, 1L));
+                    () -> gerador.gerar(null, m, Fluxo.TERRITORIAL, coercionador, "1"));
         }
 
         @Test
         void mapeamentoNulo_lancaIae() {
             LinhaMapeada l = new LinhaMapeada(123L, null, Map.of(), Map.of());
             assertThrows(IllegalArgumentException.class,
-                    () -> gerador.gerar(l, null, Fluxo.TERRITORIAL, coercionador, 1L));
+                    () -> gerador.gerar(l, null, Fluxo.TERRITORIAL, coercionador, "1"));
         }
 
         @Test
@@ -76,7 +76,7 @@ class SqlGeradorUpsertTest {
             LinhaMapeada l = new LinhaMapeada(123L, null, Map.of(), Map.of());
             Mapeamento m = mapeamentoComDinamicas(Fluxo.TERRITORIAL, Map.of());
             assertThrows(IllegalArgumentException.class,
-                    () -> gerador.gerar(l, m, null, coercionador, 1L));
+                    () -> gerador.gerar(l, m, null, coercionador, "1"));
         }
 
         @Test
@@ -84,7 +84,7 @@ class SqlGeradorUpsertTest {
             LinhaMapeada l = new LinhaMapeada(123L, null, Map.of(), Map.of());
             Mapeamento m = mapeamentoComDinamicas(Fluxo.TERRITORIAL, Map.of());
             assertThrows(IllegalArgumentException.class,
-                    () -> gerador.gerar(l, m, Fluxo.TERRITORIAL, null, 1L));
+                    () -> gerador.gerar(l, m, Fluxo.TERRITORIAL, null, "1"));
         }
     }
 
@@ -99,7 +99,7 @@ class SqlGeradorUpsertTest {
             LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), Map.of());
             Mapeamento m = mapeamentoComDinamicas(fluxo, Map.of());
 
-            ResultadoUpsert r = gerador.gerar(linha, m, fluxo, coercionador, 1L);
+            ResultadoUpsert r = gerador.gerar(linha, m, fluxo, coercionador, "1");
 
             assertTrue(r.ok(), () -> "esperado ok=true; erros=" + r.erros());
             assertEquals(List.of(), r.sqls());
@@ -117,7 +117,7 @@ class SqlGeradorUpsertTest {
             celulas.put("CAMPO_B", "   ");
             LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, "1");
 
             assertTrue(r.ok());
             assertEquals(List.of(), r.sqls());
@@ -133,7 +133,7 @@ class SqlGeradorUpsertTest {
             celulas.put("CAMPO_A", "valor qualquer");
             LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, "1");
 
             assertTrue(r.ok());
             assertEquals(List.of(), r.sqls());
@@ -157,7 +157,7 @@ class SqlGeradorUpsertTest {
             celulas.put("CAMPO_OK", "valor ok");
             LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 12345L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, "12345");
 
             assertTrue(r.ok());
             // 2 SQLs (1 par DELETE+INSERT) — só CAMPO_OK gerou.
@@ -181,7 +181,7 @@ class SqlGeradorUpsertTest {
             celulas.put("CAMPO_OK", "valor");
             LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 99L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, "99");
 
             assertTrue(r.ok());
             assertEquals(2, r.sqls().size());
@@ -197,7 +197,7 @@ class SqlGeradorUpsertTest {
             // Linha sem celula para CAMPO_AUSENTE
             LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), Map.of());
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 99L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, "99");
 
             assertTrue(r.ok());
             assertEquals(List.of(), r.sqls());
@@ -219,7 +219,7 @@ class SqlGeradorUpsertTest {
             celulas.put("OBSERVACAO", "casa simples");
             LinhaMapeada linha = new LinhaMapeada(12345L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, "98765");
 
             assertTrue(r.ok(), () -> "erros=" + r.erros());
             assertEquals(2, r.sqls().size());
@@ -242,7 +242,7 @@ class SqlGeradorUpsertTest {
             celulas.put("AREA", "1234.56");
             LinhaMapeada linha = new LinhaMapeada(12345L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, "98765");
 
             assertTrue(r.ok());
             assertEquals(
@@ -264,7 +264,7 @@ class SqlGeradorUpsertTest {
             celulas.put("DT_AVAL", "2024-01-15");
             LinhaMapeada linha = new LinhaMapeada(12345L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, "98765");
 
             assertTrue(r.ok());
             assertEquals(
@@ -284,7 +284,7 @@ class SqlGeradorUpsertTest {
             celulas.put("DT_AVAL", "15/01/2024");
             LinhaMapeada linha = new LinhaMapeada(12345L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, "98765");
 
             assertTrue(r.ok());
             assertTrue(r.sqls().get(1).contains("'15/01/2024'"),
@@ -304,7 +304,7 @@ class SqlGeradorUpsertTest {
             celulas.put("TIPO_IMOVEL", "CASA");
             LinhaMapeada linha = new LinhaMapeada(12345L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 98765L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, "98765");
 
             assertTrue(r.ok(), () -> "erros=" + r.erros());
             assertEquals(
@@ -326,7 +326,7 @@ class SqlGeradorUpsertTest {
             celulas.put("OBSERVACAO", "obs");
             LinhaMapeada linha = new LinhaMapeada(12345L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.PREDIAL, coercionador, 55500L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.PREDIAL, coercionador, "55500");
 
             assertTrue(r.ok());
             assertEquals(
@@ -354,7 +354,7 @@ class SqlGeradorUpsertTest {
             celulas.put("DATA_AVAL", "xyz");
             LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, "1");
 
             assertFalse(r.ok());
             assertEquals(List.of(), r.sqls(), "nenhum SQL emitido em falha");
@@ -374,7 +374,7 @@ class SqlGeradorUpsertTest {
             celulas.put("TIPO", "INEXISTENTE");
             LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, "1");
 
             assertFalse(r.ok());
             assertEquals(1, r.erros().size());
@@ -393,7 +393,7 @@ class SqlGeradorUpsertTest {
             celulas.put("RUIM_DECIMAL", "abc");
             LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 1L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, "1");
 
             assertFalse(r.ok());
             assertEquals(List.of(), r.sqls());
@@ -417,7 +417,7 @@ class SqlGeradorUpsertTest {
             celulas.put("OBS", "v");
             LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, 0L);
+            ResultadoUpsert r = gerador.gerar(linha, m, Fluxo.TERRITORIAL, coercionador, "0");
 
             assertTrue(r.ok());
             assertTrue(r.sqls().get(0).contains("referencia = 0"),
@@ -443,7 +443,7 @@ class SqlGeradorUpsertTest {
             celulas.put("OBS", "v");
             LinhaMapeada linha = new LinhaMapeada(1L, null, Map.of(), celulas);
 
-            ResultadoUpsert r = gerador.gerar(linha, m, fluxo, coercionador, 12345L);
+            ResultadoUpsert r = gerador.gerar(linha, m, fluxo, coercionador, "12345");
 
             assertTrue(r.ok());
             assertEquals(2, r.sqls().size());
